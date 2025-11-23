@@ -5,23 +5,29 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="login_page" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="Drawer_1" options={{ headerShown: false }} />
+        <Stack.Screen name="Drawer_2" options={{ headerShown: false }} />
+        <Stack.Screen name="Drawer_3" options={{ headerShown: false }} />
+        <Stack.Screen name="DaedokPick" options={{ headerShown: false }} />
+        <Stack.Screen name="SearchScreen_1" options={{ headerShown: false }} />
+        <Stack.Screen name="SearchScreen_2" options={{ headerShown: false }} />
+        <Stack.Screen name="SearchResult" options={{ headerShown: false }} />
+        <Stack.Screen name="BookDetailScreen" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="Onboarding_2" options={{ headerShown: false }} />
+        <Stack.Screen name="Onboarding_3" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
   );
 }
+

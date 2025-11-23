@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 
 import {
   GoogleLoginResult,
@@ -34,32 +35,45 @@ const APP_LOGO = require('../assets/images/login/android_app_logo.png');
 const GOOGLE_LOGO = require('../assets/images/login/google_app_logo.webp');
 const KAKAO_LOGO = require('../assets/images/login/kakao_app_logo.webp');
 
-import { useDeviceType } from '@/hooks/use-device-type';
-
 export default function LoginScreen() {
-  
-  const { isTablet } = useDeviceType();
 
   const router = useRouter();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  // 앱 시작 시 세션 체크 (테스트를 위해 주석 처리)
+  // useEffect(() => {
+  //   const checkExistingSession = async () => {
+  //     try {
+  //       const hasSession = await checkSession();
+  //       if (hasSession) {
+  //         console.log('[LOGIN] 기존 세션 발견, 온보딩으로 이동');
+  //         router.replace('/onboarding');
+  //       }
+  //     } catch (e) {
+  //       // 세션 체크 실패는 무시
+  //     } finally {
+  //       setIsCheckingSession(false);
+  //     }
+  //   };
+  //   checkExistingSession();
+  // }, [router]);
+  
+  // 테스트를 위해 세션 체크를 스킵하고 바로 로그인 화면 표시
+  useEffect(() => {
+    setIsCheckingSession(false);
+  }, []);
 
   const onLoginSuccess = useCallback(
 
     (result: GoogleLoginResult) => {
 
-      const { user, idToken, platform } = result;
+      console.log('[LOGIN] ✅ Login success');
 
-      console.log(`[LOGIN] platform: ${platform}`);
-
-      console.log('[LOGIN] user:', user);
-
-      console.log('[LOGIN] idToken:', idToken);
-
-      // TODO: 여기에서 Supabase / 백엔드로 idToken + user 전송
-
-      // fetch('https://백엔드/api/auth/google', { ... })
-
-      // 온보딩 화면으로 이동
-      router.replace('/onboarding');
+      // 네비게이션을 다음 프레임에서 실행하여 렌더링 완료 후 이동
+      setTimeout(() => {
+        console.log('[LOGIN] Navigating to onboarding...');
+        router.replace('/onboarding');
+      }, 100);
 
     },
 
@@ -74,6 +88,20 @@ export default function LoginScreen() {
     Alert.alert('준비 중', '카카오 로그인은 나중에 연동할 예정입니다.');
 
   };
+
+  // 세션 체크 중이면 로딩 표시
+  if (isCheckingSession) {
+    return (
+      <View style={styles.root}>
+        <View style={styles.logoContainer}>
+          <Image source={APP_LOGO} style={styles.logoImage} resizeMode="contain" />
+        </View>
+        <View style={styles.card}>
+          <ActivityIndicator size="large" color="#2D4F2F" />
+        </View>
+      </View>
+    );
+  }
 
   return (
 
@@ -99,7 +127,7 @@ export default function LoginScreen() {
 
           placeholderTextColor="#A0A0A0"
 
-          style={[styles.input, isTablet && styles.inputTablet]}
+          style={styles.input}
 
           keyboardType="email-address"
 
@@ -111,7 +139,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
 
-          style={[styles.continueButton, isTablet && styles.continueButtonTablet]}
+          style={styles.continueButton}
 
           activeOpacity={0.8}
 
@@ -119,7 +147,7 @@ export default function LoginScreen() {
 
         >
 
-          <Text style={[styles.continueText, isTablet && styles.continueTextTablet]}>CONTINUE</Text>
+          <Text style={styles.continueText}>CONTINUE</Text>
 
         </TouchableOpacity>
 
@@ -139,7 +167,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
 
-          style={[styles.googleButton, isTablet && styles.googleButtonTablet]}
+          style={styles.googleButton}
 
           activeOpacity={0.8}
 
@@ -153,11 +181,7 @@ export default function LoginScreen() {
 
             <Image source={GOOGLE_LOGO} style={styles.socialIcon} resizeMode="contain" />
 
-            <View style={styles.textContainer}>
-
-              <Text style={styles.googleText}>Sign in with Google</Text>
-
-            </View>
+            <Text style={styles.googleText}>Sign in with Google</Text>
 
           </View>
 
@@ -167,7 +191,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
 
-          style={[styles.kakaoButton, isTablet && styles.kakaoButtonTablet]}
+          style={styles.kakaoButton}
 
           activeOpacity={0.8}
 
@@ -177,13 +201,9 @@ export default function LoginScreen() {
 
           <View style={styles.socialContent}>
 
-            <Image source={KAKAO_LOGO} style={styles.kakaoIcon} resizeMode="contain" />
+            <Image source={KAKAO_LOGO} style={styles.socialIcon} resizeMode="contain" />
 
-            <View style={styles.textContainer}>
-
-              <Text style={styles.kakaoText}>Sign in with Kakao</Text>
-
-            </View>
+            <Text style={styles.kakaoText}>Sign in with Kakao</Text>
 
           </View>
 
@@ -397,18 +417,6 @@ const styles = StyleSheet.create({
 
   },
 
-  kakaoIcon: {
-
-    width: 33,
-
-    height: 32,
-
-    position: 'absolute',
-
-    left: 18,
-
-  },
-
   textContainer: {
 
     flex: 1,
@@ -446,38 +454,6 @@ const styles = StyleSheet.create({
     top: '35%',
 
     alignSelf: 'center',
-
-  },
-
-  // 태블릿용 스타일 (안드로이드만) - 모바일과 유사하게 유지
-
-  inputTablet: {
-
-    // 태블릿도 모바일과 동일한 스타일 유지
-
-  },
-
-  continueButtonTablet: {
-
-    // 태블릿도 모바일과 동일한 스타일 유지
-
-  },
-
-  continueTextTablet: {
-
-    // 태블릿도 모바일과 동일한 스타일 유지
-
-  },
-
-  googleButtonTablet: {
-
-    // 태블릿도 모바일과 동일한 스타일 유지
-
-  },
-
-  kakaoButtonTablet: {
-
-    // 태블릿도 모바일과 동일한 스타일 유지
 
   },
 

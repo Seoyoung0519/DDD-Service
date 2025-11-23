@@ -14,7 +14,7 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 import { GOOGLE_WEB_CLIENT_ID } from '@/src/constants/auth';
 
-import { loginWithGoogleIdToken } from '@/src/api/auth';
+import { loginWithGoogle } from '@/src/services/auth/authService';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -53,51 +53,25 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
   // 백엔드 API 호출 및 로그인 성공 처리
   const handleLoginSuccess = useCallback(
     async (result: GoogleLoginResult) => {
-      // 백엔드 API URL이 설정되어 있으면 호출, 없으면 스킵 (테스트용)
-      const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-      
-      if (apiBaseUrl) {
-        try {
-          // 1) 백엔드로 idToken 전달
-          console.log('[AUTH] 백엔드 API 호출 시도:', {
-            url: `${apiBaseUrl}/auth/google`,
-            idToken: result.idToken.substring(0, 20) + '...',
-            platform: result.platform,
-          });
-          
-          const authResponse = await loginWithGoogleIdToken(
-            result.idToken,
-            result.platform,
-          );
-
-          console.log('[AUTH] ✅ backend auth success:', authResponse);
-
-          // TODO: 여기서 authResponse.accessToken / authResponse.user를
-          // 전역 상태나 AsyncStorage에 저장하면 됨.
-          // 예: await AsyncStorage.setItem('accessToken', authResponse.accessToken);
-        } catch (error: any) {
-          console.error('[AUTH] ❌ backend auth error:', error);
-          // 임시 테스트: 에러가 나도 Alert 없이 콘솔만 찍고 계속 진행
-          console.log('[AUTH] 백엔드 API 호출 실패했지만 로그인은 계속 진행합니다.');
-          // 실제 배포 시에는 아래 주석을 해제하세요:
-          // Alert.alert(
-          //   '로그인 실패',
-          //   error?.message || '서버 인증 중 오류가 발생했습니다.',
-          // );
-          // throw error;
-        }
-      } else {
-        // 백엔드 URL이 없으면 테스트 모드
-        console.log('[AUTH] 🧪 테스트 모드: 백엔드 API 호출 스킵');
-        console.log('[AUTH] 전송할 데이터:', {
-          idToken: result.idToken.substring(0, 20) + '...',
+      try {
+        // 백엔드로 idToken 전달
+        const authResponse = await loginWithGoogle({
+          idToken: result.idToken,
           platform: result.platform,
-          user: result.user,
         });
-      }
 
-      // 백엔드 API 성공/실패와 관계없이 onSuccess 콜백 호출 (테스트용)
-      onSuccess?.(result);
+        console.log('[AUTH] ✅ Login success:', authResponse.user.email);
+
+        // onSuccess 콜백 호출 (온보딩 화면으로 네비게이션 등)
+        onSuccess?.(result);
+      } catch (error: any) {
+        console.error('[AUTH] ❌ Login error:', error);
+        Alert.alert(
+          '로그인 실패',
+          error?.message || '서버 인증 중 오류가 발생했습니다.',
+        );
+        throw error;
+      }
     },
     [onSuccess],
   );
@@ -123,9 +97,11 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
     if (Platform.OS === 'android') {
 
       GoogleSignin.configure({
-
         webClientId: GOOGLE_WEB_CLIENT_ID,
-
+        // offlineAccess: true로 설정하면 serverAuthCode를 받을 수 있음
+        // 백엔드가 Google API에 접근해야 할 때만 필요
+        // 일반적인 로그인 인증만 필요하면 false (기본값)로 유지
+        offlineAccess: true, // 필요시 true로 변경
       });
 
     }
@@ -149,8 +125,6 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
     };
 
     const handleWebResponse = async () => {
-
-      console.log('Web Google response:', JSON.stringify(response, null, 2));
 
       if (response.type === 'success') {
 
@@ -236,15 +210,7 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
 
           }
 
-          console.log(
-
-            '[WEB] userInfo:',
-
-            JSON.stringify({ type: 'success', data: { idToken, user } }, null, 2),
-
-          );
-
-          console.log('[WEB] idToken:', idToken);
+          console.log('[WEB] Login successful');
 
           const result: GoogleLoginResult = { platform: 'web', idToken, user };
           
@@ -316,31 +282,45 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
 
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
 
-        // 기존 로그인 세션이 있으면 먼저 로그아웃 (테스트용 - 프로덕션에서는 제거하거나 선택적으로 사용)
-        try {
-          const currentUser = await GoogleSignin.getCurrentUser();
-          if (currentUser) {
-            console.log('[ANDROID] 기존 세션 발견, 로그아웃 후 재로그인');
-            await GoogleSignin.signOut();
-          }
-        } catch (e) {
-          // 로그아웃 실패는 무시하고 계속 진행
-          console.log('[ANDROID] 로그아웃 체크 실패:', e);
-        }
+        // 기존 세션이 있어도 토큰이 만료되었을 수 있으므로 항상 signIn()을 호출하여 새로운 토큰을 받습니다
+        // signIn()은 이미 로그인되어 있으면 사용자에게 다시 로그인을 요청하지 않고 새로운 토큰을 반환합니다
 
         const signInResult: any = await GoogleSignin.signIn();
 
-        const idToken: string | undefined =
+        // idToken 추출 - 여러 가능한 경로 확인
+        let idToken: string | undefined =
+          signInResult?.data?.idToken ??
+          signInResult?.idToken ??
+          signInResult?.data?.id_token ??
+          signInResult?.id_token;
 
-          signInResult?.data?.idToken ?? signInResult?.idToken;
+        // idToken이 없으면 getTokens()로 시도
+        if (!idToken) {
+          try {
+            const tokens = await GoogleSignin.getTokens();
+            idToken = tokens?.idToken;
+          } catch (e) {
+            // getTokens 실패는 무시
+          }
+        }
 
         const rawUser = signInResult?.data?.user ?? signInResult?.user;
 
-        console.log('[ANDROID] userInfo:', JSON.stringify(signInResult, null, 2));
+        console.log('[ANDROID] Login successful');
 
-        console.log('[ANDROID] idToken:', idToken);
+        if (!idToken || typeof idToken !== 'string' || idToken.trim().length === 0) {
+          console.error('[ANDROID] Invalid idToken:', {
+            idToken,
+            type: typeof idToken,
+            signInResultKeys: Object.keys(signInResult || {}),
+            dataKeys: signInResult?.data ? Object.keys(signInResult.data) : [],
+          });
+          throw new Error('idToken을 가져올 수 없습니다.');
+        }
 
-        if (!idToken || !rawUser) throw new Error('idToken 또는 사용자 정보가 없습니다.');
+        if (!rawUser) {
+          throw new Error('사용자 정보를 가져올 수 없습니다.');
+        }
 
         const user: GoogleLoginUser = {
 

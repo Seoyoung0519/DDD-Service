@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 
 import { useDeviceType } from '@/hooks/use-device-type';
 
-// 버스 아이콘 이미지
+// 버스 아이콘 이미지 (app 바로 아래에 있으므로 한 단계만 올라감)
 const BUS_ICON = require('../assets/images/onboarding/daedokdan-bus.png');
 
 export default function OnboardingScreen() {
@@ -31,13 +31,8 @@ export default function OnboardingScreen() {
 
   const handleStart = () => {
 
-    // TODO: 온보딩 이후 메인 화면 경로로 교체
-
-    // 예: router.replace('/home');
-
-    // 지금은 일단 뒤로 가기만 해둠
-
-    router.back();
+    // 온보딩 2단계 페이지로 이동
+    router.push('/Onboarding_2');
 
   };
 
