@@ -4,17 +4,17 @@ import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getBookDetail, type BookDetailResponse } from '../src/api/search';
@@ -599,6 +599,7 @@ export default function BookDetailScreen() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('책읽기');
+            router.push('/ReadingIntroScreen');
           }}>
           <Image
             source={READING_ICON}

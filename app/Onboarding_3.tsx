@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Dimensions,
@@ -42,9 +42,9 @@ const COLORS = {
   CHIP_SELECTED_BG: '#E4F6E9',
   CHIP_SELECTED_BORDER: '#2C8C55',
   CHIP_SELECTED_TEXT: '#2E7D32',
-  SPEED_CIRCLE_LIGHT: '#C4E1B5',
+  SPEED_CIRCLE_LIGHT: '#C4E1B5', // 연한 초록색 (선택 안됨)
   SPEED_CIRCLE_MEDIUM: '#A5D884',
-  SPEED_CIRCLE_DARK: '#2E7D32',
+  SPEED_CIRCLE_DARK: '#5CB85C', // 중간 톤 초록색 (선택됨) - 너무 진하지 않게 조정
 };
 
 // 폰트 패밀리
@@ -89,14 +89,17 @@ const GENRES = [
 ] as const;
 
 type Genre = (typeof GENRES)[number];
-type ReadingSpeed = 'slow' | 'normal' | 'fast';
+type ReadingSpeed = 1 | 2 | 3 | 4 | 5; // 5개의 원 (1: 매우 느림, 3: 보통, 5: 매우 빠름)
 type ReadingFreq = '1' | '2' | '3' | '4+';
 
 export default function Onboarding_3() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ userType?: string }>();
+  const userType = params.userType as 'worker_student' | 'other' | undefined;
+
   const [nickname, setNickname] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<Genre[]>([]);
-  const [speed, setSpeed] = useState<ReadingSpeed>('normal');
+  const [speed, setSpeed] = useState<ReadingSpeed>(3); // 기본값: 보통 (3번째 원)
   const [freq, setFreq] = useState<ReadingFreq | null>(null);
   const [showFreqDropdown, setShowFreqDropdown] = useState(false);
 
@@ -120,9 +123,22 @@ export default function Onboarding_3() {
       alert('선호하는 책 장르를 1개 이상 선택해주세요.');
       return;
     }
-    // 다음 단계로 이동
-    console.log('Profile data:', { nickname, selectedGenres, speed, freq });
-    // router.push('/Onboarding_4'); // 다음 단계가 있다면
+    if (!freq) {
+      alert('독서 횟수를 선택해주세요.');
+      return;
+    }
+    
+    // userType이 'worker_student'인 경우에만 Onboarding_4로 이동
+    if (userType === 'worker_student') {
+      router.push({
+        pathname: '/Onboarding_4',
+        params: { userType: userType },
+      });
+    } else {
+      // '그 외' 선택 시 Onboarding_5로 이동
+      console.log('Profile data:', { nickname, selectedGenres, speed, freq });
+      router.push('/Onboarding_5');
+    }
   };
 
   const freqOptions: { value: ReadingFreq; label: string }[] = [
@@ -230,46 +246,33 @@ export default function Onboarding_3() {
           <View style={styles.speedContainer}>
             <View style={styles.speedLabels}>
               <Text style={styles.speedLabel}>매우 느림</Text>
+              <View style={styles.speedLabelSpacer} />
               <Text style={styles.speedLabel}>보통</Text>
+              <View style={styles.speedLabelSpacer} />
               <Text style={styles.speedLabel}>매우 빠름</Text>
             </View>
             <View style={styles.speedCircles}>
-              <TouchableOpacity
-                style={[
-                  styles.speedCircle,
-                  styles.speedCircleLarge,
-                  speed === 'slow' && styles.speedCircleSelected,
-                ]}
-                onPress={() => setSpeed('slow')}
-                activeOpacity={0.7}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.speedCircle,
-                  styles.speedCircleMedium,
-                  speed === 'slow' && styles.speedCircleSelectedMedium,
-                ]}
-                onPress={() => setSpeed('slow')}
-                activeOpacity={0.7}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.speedCircle,
-                  styles.speedCircleMedium,
-                  speed === 'normal' && styles.speedCircleSelected,
-                ]}
-                onPress={() => setSpeed('normal')}
-                activeOpacity={0.7}
-              />
-              <TouchableOpacity
-                style={[
-                  styles.speedCircle,
-                  styles.speedCircleLarge,
-                  speed === 'fast' && styles.speedCircleSelected,
-                ]}
-                onPress={() => setSpeed('fast')}
-                activeOpacity={0.7}
-              />
+              {[1, 2, 3, 4, 5].map((index) => {
+                const isSelected = speed === index;
+                // 원 크기: 1번과 5번이 크고, 2번과 4번이 중간, 3번이 작음
+                const getCircleSize = () => {
+                  if (index === 1 || index === 5) return styles.speedCircleLarge;
+                  if (index === 2 || index === 4) return styles.speedCircleMedium;
+                  return styles.speedCircleSmall;
+                };
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.speedCircle,
+                      getCircleSize(),
+                      isSelected && styles.speedCircleSelected,
+                    ]}
+                    onPress={() => setSpeed(index as ReadingSpeed)}
+                    activeOpacity={0.7}
+                  />
+                );
+              })}
             </View>
           </View>
         </View>
@@ -322,13 +325,13 @@ export default function Onboarding_3() {
           <TouchableOpacity
             style={styles.previousButton}
             onPress={handlePrevious}
-            activeOpacity={0.8}>
+            activeOpacity={0.6}>
             <Text style={styles.previousButtonText}>이전</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.nextButton}
             onPress={handleNext}
-            activeOpacity={0.8}>
+            activeOpacity={0.6}>
             <Text style={styles.nextButtonText}>다음</Text>
           </TouchableOpacity>
         </View>
@@ -400,9 +403,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#333333',
-    fontFamily: FONTS.SEMIBOLD,
+    fontFamily: FONTS.BOLD,
   },
   asterisk: {
     color: '#2196F3',
@@ -519,9 +522,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   speedCircle: {
-    borderRadius: 22,
-    backgroundColor: COLORS.SPEED_CIRCLE_LIGHT,
-    opacity: 0.5,
+    backgroundColor: COLORS.SPEED_CIRCLE_LIGHT, // 연한 초록색 (기본)
+    opacity: 0.6,
   },
   speedCircleLarge: {
     width: 48,
@@ -533,15 +535,16 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
   },
-  speedCircleSelected: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: COLORS.SPEED_CIRCLE_DARK,
-    opacity: 1,
+  speedCircleSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
-  speedCircleSelectedMedium: {
-    backgroundColor: COLORS.SPEED_CIRCLE_MEDIUM,
+  speedCircleSelected: {
+    backgroundColor: COLORS.SPEED_CIRCLE_DARK, // 진한 초록색 (선택됨)
     opacity: 1,
+    borderWidth: 2,
+    borderColor: '#000000', // 검은색 테두리
   },
   dropdown: {
     height: 44,

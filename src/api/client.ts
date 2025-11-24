@@ -1,6 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { Alert, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Base URL
 const BASE_URL = 'https://daedokdan-api.onrender.com';
@@ -69,11 +69,19 @@ client.interceptors.response.use(
 
     // HTTP 에러 (4xx, 5xx)
     const status = error.response?.status;
-    const message = error.response?.data?.message || error.response?.data?.error || '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
+    const errorMessage = error.response?.data?.message || error.response?.data?.error;
+    
+    // 500 에러인 경우 더 구체적인 메시지
+    let message = errorMessage || '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
+    if (status === 500 && errorMessage?.includes('Aladin')) {
+      message = '도서 검색 서비스에 일시적인 문제가 발생했어요. 잠시 후 다시 시도해주세요.';
+    }
 
-    console.error(`[API] Error ${status}:`, message);
-
-    if (Platform.OS !== 'web') {
+    console.error(`[API] Error ${status}:`, errorMessage || message);
+    
+    // 500 에러는 Alert를 표시하지 않음 (각 컴포넌트에서 처리하도록)
+    // 4xx 에러만 Alert 표시
+    if (status && status >= 400 && status < 500 && Platform.OS !== 'web') {
       Alert.alert('오류', message);
     }
 

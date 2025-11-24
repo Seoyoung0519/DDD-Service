@@ -3,15 +3,15 @@ import { Image as ExpoImage } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  FlatList,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getBookshelfList, type BookshelfItem } from '../src/api/bookshelf';
@@ -347,17 +347,21 @@ export default function HomeShelf() {
                                 const shelfIndex = Math.floor(index / 6); // 0, 1, 2 (상단, 중간, 하단)
                                 const bookIndexOnShelf = index % 6; // 0, 1, 2, 3, 4, 5
                                 // 선반 위치 조정 (책장 이미지의 검은색 사각형 슬롯 위치에 맞춤)
-                                const shelfTop = shelfIndex === 0 ? 42 : shelfIndex === 1 ? 100 : 192; // 각 선반의 Y 위치
+                                const shelfTop = shelfIndex === 0 ? 42 : shelfIndex === 1 ? 100 : 158; // 각 선반의 Y 위치 (3번째 행: 192 -> 180으로 조정)
                                 // 책장 너비를 고려하여 한 행에 6개씩 균등 배치
                                 const bookshelfWidth = SCREEN_WIDTH * 0.9; // bookshelfWrapper의 width
                                 const bookWidth = 32; // 책 너비 (검은색 사각형 크기에 맞춤)
                                 const bookHeight = 46; // 책 높이 (검은색 사각형 크기에 맞춤)
                                 const totalBooksWidth = bookWidth * 6; // 6개 책의 총 너비
                                 const spacing = (bookshelfWidth - totalBooksWidth) / 7; // 양쪽 여백 + 책 사이 간격
-                                const leftOffset = -12; // 왼쪽으로 이동할 오프셋 (검은색 사각형 위치에 맞춤)
                                 
-                                // 오른쪽 3개 책(인덱스 3, 4, 5)의 간격을 좁히기 위한 조정
+                                // 모든 행에 동일한 leftOffset 적용
+                                const leftOffset = -12;
+                                
+                                // 모든 행에 동일한 X축 정렬 로직 적용
                                 let bookLeft = spacing + bookIndexOnShelf * (bookWidth + spacing) + leftOffset;
+                                
+                                // 오른쪽 3개 책(인덱스 3, 4, 5)의 간격 조정 - 모든 행에 동일하게 적용
                                 if (bookIndexOnShelf >= 3) {
                                   // 오른쪽 3개 책의 간격을 좁히기 (각각 3px씩 왼쪽으로 이동)
                                   const rightOffset = (bookIndexOnShelf - 2) * -3; // 3번째: -3px, 4번째: -6px, 5번째: -9px
@@ -538,7 +542,10 @@ export default function HomeShelf() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveNav('책읽기')}>
+          onPress={() => {
+            setActiveNav('책읽기');
+            router.push('/ReadingIntroScreen');
+          }}>
           <Image
             source={READING_ICON}
             style={[

@@ -238,6 +238,7 @@ export default function SearchResult() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('책읽기');
+            router.push('/ReadingIntroScreen');
           }}>
           <Image
             source={READING_ICON}

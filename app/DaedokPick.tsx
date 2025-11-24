@@ -3,17 +3,17 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    FlatList,
-    Image,
-    ImageBackground,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  FlatList,
+  Image,
+  ImageBackground,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -1054,7 +1054,10 @@ export default function DaedokPickScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveNav('책읽기')}>
+          onPress={() => {
+            setActiveNav('책읽기');
+            router.push('/ReadingIntroScreen');
+          }}>
           <Image
             source={READING_ICON}
             style={[

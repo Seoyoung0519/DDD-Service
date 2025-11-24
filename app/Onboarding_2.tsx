@@ -25,9 +25,9 @@ const COLORS = {
   GRAY: '#999999',
   BACKGROUND: '#FFFFFF',
   CARD_BG_SELECTED: '#FFFFFF',
-  CARD_BG_UNSELECTED: '#F5F5F5',
-  BORDER_SELECTED: '#2C8C55',
-  BORDER_UNSELECTED: '#DDDDDD',
+  CARD_BG_UNSELECTED: '#F5F5F5', // 연한 회색
+  BORDER_SELECTED: '#2C8C55', // 초록색
+  BORDER_UNSELECTED: '#DDDDDD', // 연한 회색 테두리
   BUTTON_BG: '#2C8C55',
   BUTTON_TEXT: '#FFFFFF',
 };
@@ -67,8 +67,11 @@ export default function Onboarding_2() {
   };
 
   const handleNext = () => {
-    // 다음 온보딩 단계로 이동
-    router.push('/Onboarding_3');
+    // 다음 온보딩 단계로 이동 (userType 전달)
+    router.push({
+      pathname: '/Onboarding_3',
+      params: { userType: selectedUserType },
+    });
   };
 
   return (
@@ -139,7 +142,7 @@ export default function Onboarding_2() {
       <TouchableOpacity
         style={styles.nextButton}
         onPress={handleNext}
-        activeOpacity={0.8}>
+        activeOpacity={0.6}>
         <Text style={styles.nextButtonText}>다음</Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -211,8 +214,8 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderWidth: 2,
-    borderColor: COLORS.BORDER_SELECTED,
-    backgroundColor: COLORS.CARD_BG_SELECTED,
+    borderColor: COLORS.BORDER_SELECTED, // 초록색 테두리
+    backgroundColor: COLORS.CARD_BG_SELECTED, // 흰색 배경
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -224,8 +227,8 @@ const styles = StyleSheet.create({
   },
   cardUnselected: {
     borderWidth: 1,
-    borderColor: COLORS.BORDER_UNSELECTED,
-    backgroundColor: COLORS.CARD_BG_UNSELECTED,
+    borderColor: COLORS.BORDER_UNSELECTED, // 연한 회색 테두리
+    backgroundColor: COLORS.CARD_BG_UNSELECTED, // 연한 회색 배경
   },
   cardContent: {
     flex: 1,

@@ -24,6 +24,16 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="Onboarding_2" options={{ headerShown: false }} />
         <Stack.Screen name="Onboarding_3" options={{ headerShown: false }} />
+        <Stack.Screen name="Onboarding_4" options={{ headerShown: false }} />
+        <Stack.Screen name="Onboarding_5" options={{ headerShown: false }} />
+        <Stack.Screen name="Onboarding_6" options={{ headerShown: false }} />
+        <Stack.Screen name="Onboarding_7" options={{ headerShown: false }} />
+        <Stack.Screen name="Onboarding_8" options={{ headerShown: false }} />
+        <Stack.Screen name="ReadingIntroScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="ReadingSession_1" options={{ headerShown: false }} />
+        <Stack.Screen name="ReadingSession_2" options={{ headerShown: false }} />
+        <Stack.Screen name="ReadingSession_3" options={{ headerShown: false }} />
+        <Stack.Screen name="ReadingSession_4" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

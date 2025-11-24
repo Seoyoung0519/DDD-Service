@@ -3,14 +3,14 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -325,7 +325,10 @@ export default function ShelfGemScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveNav('책읽기')}>
+          onPress={() => {
+            setActiveNav('책읽기');
+            router.push('/ReadingIntroScreen');
+          }}>
           <Image
             source={READING_ICON}
             style={[

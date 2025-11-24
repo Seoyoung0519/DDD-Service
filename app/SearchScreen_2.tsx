@@ -383,6 +383,7 @@ export default function SearchScreen_2() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('책읽기');
+            router.push('/ReadingIntroScreen');
           }}>
           <Image
             source={READING_ICON}

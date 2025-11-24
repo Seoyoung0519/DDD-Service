@@ -168,10 +168,16 @@ export async function loginWithGoogle(
   // accessToken 저장
   await saveAccessToken(data.accessToken);
 
+  // 토큰 일부만 표시 (보안을 위해)
+  const maskToken = (token: string): string => {
+    if (token.length <= 10) return '***';
+    return `${token.substring(0, 8)}...${token.substring(token.length - 8)}`;
+  };
+
   console.log('[AUTH] ✅ Login success:', {
     email: data.user.email,
     userId: data.user.id,
-    accessToken: data.accessToken.substring(0, 20) + '...', // 보안을 위해 일부만 표시
+    accessToken: maskToken(data.accessToken),
     accessTokenLength: data.accessToken.length,
     expiresIn: data.expiresIn,
   });
