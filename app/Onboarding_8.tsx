@@ -58,7 +58,7 @@ export default function Onboarding_8() {
   const router = useRouter();
 
   const handleStart = () => {
-    // 온보딩 완료 후 홈으로 이동
+    // 온보딩 완료 후 앱 메인(책장/키링 등 — `app/(tabs)` Expo 템플릿 홈 아님)
     router.replace('/Drawer_1');
   };
 

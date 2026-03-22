@@ -397,6 +397,7 @@ export default function SearchScreen_1() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('내서재');
+            router.push('/my-library');
           }}>
           <Image
             source={LIBRARY_ICON}

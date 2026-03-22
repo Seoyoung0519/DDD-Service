@@ -1,6 +1,9 @@
+import { setOnboardingUserType } from '@/src/services/onboarding/onboardingService';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   Platform,
@@ -61,17 +64,29 @@ type UserType = 'worker_student' | 'other';
 export default function Onboarding_2() {
   const router = useRouter();
   const [selectedUserType, setSelectedUserType] = useState<UserType>('worker_student');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSelect = (type: UserType) => {
     setSelectedUserType(type);
   };
 
-  const handleNext = () => {
-    // 다음 온보딩 단계로 이동 (userType 전달)
-    router.push({
-      pathname: '/Onboarding_3',
-      params: { userType: selectedUserType },
-    });
+  const handleNext = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await setOnboardingUserType({ userType: selectedUserType });
+      router.push({
+        pathname: '/Onboarding_3',
+        params: { userType: selectedUserType },
+      });
+    } catch (e) {
+      Alert.alert(
+        '오류',
+        e instanceof Error ? e.message : '사용자 유형을 저장하지 못했습니다. 다시 시도해주세요.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -140,10 +155,15 @@ export default function Onboarding_2() {
 
       {/* 하단 "다음" 버튼 */}
       <TouchableOpacity
-        style={styles.nextButton}
+        style={[styles.nextButton, submitting && { opacity: 0.7 }]}
         onPress={handleNext}
+        disabled={submitting}
         activeOpacity={0.6}>
-        <Text style={styles.nextButtonText}>다음</Text>
+        {submitting ? (
+          <ActivityIndicator color={COLORS.BUTTON_TEXT} />
+        ) : (
+          <Text style={styles.nextButtonText}>다음</Text>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );

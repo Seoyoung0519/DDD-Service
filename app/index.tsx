@@ -29,6 +29,10 @@ import {
   GoogleLoginResult,
   useGoogleLogin,
 } from '@/src/features/auth/useGoogleLogin';
+import {
+  fetchBootstrapSessionAndOnboarding,
+  fetchOnboardingState,
+} from '@/src/services/onboarding/onboardingService';
 
 // 로고 이미지
 const APP_LOGO = require('../assets/images/login/android_app_logo.png');
@@ -40,45 +44,59 @@ export default function LoginScreen() {
   const router = useRouter();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
-  // 앱 시작 시 세션 체크 (테스트를 위해 주석 처리)
-  // useEffect(() => {
-  //   const checkExistingSession = async () => {
-  //     try {
-  //       const hasSession = await checkSession();
-  //       if (hasSession) {
-  //         console.log('[LOGIN] 기존 세션 발견, 온보딩으로 이동');
-  //         router.replace('/onboarding');
-  //       }
-  //     } catch (e) {
-  //       // 세션 체크 실패는 무시
-  //     } finally {
-  //       setIsCheckingSession(false);
-  //     }
-  //   };
-  //   checkExistingSession();
-  // }, [router]);
-  
-  // 테스트를 위해 세션 체크를 스킵하고 바로 로그인 화면 표시
+  // 앱 시작 시 세션 + 온보딩 상태 체크 (/me 와 온보딩 state 병렬 요청)
   useEffect(() => {
-    setIsCheckingSession(false);
-  }, []);
+    const checkInitialRoute = async () => {
+      try {
+        const { hasValidSession, onboarding: onboardingState } =
+          await fetchBootstrapSessionAndOnboarding();
+        if (!hasValidSession) {
+          setIsCheckingSession(false);
+          return;
+        }
+
+        if (onboardingState && onboardingState.isOnboarded) {
+          console.log('[LOGIN] 기존 세션 + 온보딩 완료, 대독단 메인(Drawer_1)으로 이동');
+          router.replace('/Drawer_1');
+        } else if (onboardingState) {
+          console.log('[LOGIN] 기존 세션, 온보딩 필요, 온보딩으로 이동');
+          router.replace('/onboarding');
+        } else {
+          // 온보딩 상태 조회 실패(null) 시에는 로그인 화면에 머문다.
+          // (잘못된 자동 진입으로 대독단 메인이 뜨는 문제 방지)
+          console.warn('[LOGIN] 온보딩 상태 조회 실패(null), 로그인 화면 유지');
+          return;
+        }
+      } catch (e) {
+        // 실패 시에는 로그인 화면을 보여준다
+      } finally {
+        setIsCheckingSession(false);
+      }
+    };
+
+    checkInitialRoute();
+  }, [router]);
 
   const onLoginSuccess = useCallback(
-
-    (result: GoogleLoginResult) => {
-
+    async (result: GoogleLoginResult) => {
       console.log('[LOGIN] ✅ Login success');
 
-      // 네비게이션을 다음 프레임에서 실행하여 렌더링 완료 후 이동
-      setTimeout(() => {
-        console.log('[LOGIN] Navigating to onboarding...');
+      try {
+        const onboardingState = await fetchOnboardingState();
+
+        if (onboardingState && onboardingState.isOnboarded) {
+          console.log('[LOGIN] 온보딩 완료, 대독단 메인(Drawer_1)으로 이동');
+          router.replace('/Drawer_1');
+        } else {
+          console.log('[LOGIN] 온보딩 필요, 온보딩으로 이동');
+          router.replace('/onboarding');
+        }
+      } catch (e) {
+        console.warn('[LOGIN] 온보딩 상태 조회 실패, 온보딩으로 이동:', e);
         router.replace('/onboarding');
-      }, 100);
-
+      }
     },
-
     [router],
-
   );
 
   const { isLoading, login, request } = useGoogleLogin(onLoginSuccess);

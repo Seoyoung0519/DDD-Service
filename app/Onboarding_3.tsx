@@ -1,7 +1,13 @@
+import {
+  submitReadingProfile,
+  type ReadingSpeed as ApiReadingSpeed,
+} from '@/src/services/onboarding/onboardingService';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   Platform,
@@ -89,8 +95,19 @@ const GENRES = [
 ] as const;
 
 type Genre = (typeof GENRES)[number];
-type ReadingSpeed = 1 | 2 | 3 | 4 | 5; // 5개의 원 (1: 매우 느림, 3: 보통, 5: 매우 빠름)
+type UiReadingSpeed = 1 | 2 | 3 | 4 | 5; // 5개의 원 (1: 매우 느림, 3: 보통, 5: 매우 빠름)
 type ReadingFreq = '1' | '2' | '3' | '4+';
+
+function mapUiSpeedToApi(speed: UiReadingSpeed): ApiReadingSpeed {
+  if (speed <= 2) return 'slow';
+  if (speed === 3) return 'normal';
+  return 'fast';
+}
+
+function mapFreqToWeeklyCount(freq: ReadingFreq): number {
+  if (freq === '4+') return 4;
+  return parseInt(freq, 10);
+}
 
 export default function Onboarding_3() {
   const router = useRouter();
@@ -99,9 +116,10 @@ export default function Onboarding_3() {
 
   const [nickname, setNickname] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<Genre[]>([]);
-  const [speed, setSpeed] = useState<ReadingSpeed>(3); // 기본값: 보통 (3번째 원)
+  const [speed, setSpeed] = useState<UiReadingSpeed>(3); // 기본값: 보통 (3번째 원)
   const [freq, setFreq] = useState<ReadingFreq | null>(null);
   const [showFreqDropdown, setShowFreqDropdown] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const toggleGenre = (genre: Genre) => {
     setSelectedGenres((prev) =>
@@ -113,8 +131,8 @@ export default function Onboarding_3() {
     router.back();
   };
 
-  const handleNext = () => {
-    // 검증
+  const handleNext = async () => {
+    if (submitting) return;
     if (!nickname.trim()) {
       alert('닉네임을 입력해주세요.');
       return;
@@ -127,17 +145,31 @@ export default function Onboarding_3() {
       alert('독서 횟수를 선택해주세요.');
       return;
     }
-    
-    // userType이 'worker_student'인 경우에만 Onboarding_4로 이동
-    if (userType === 'worker_student') {
-      router.push({
-        pathname: '/Onboarding_4',
-        params: { userType: userType },
+
+    setSubmitting(true);
+    try {
+      await submitReadingProfile({
+        nickname: nickname.trim(),
+        preferredGenres: [...selectedGenres],
+        readingSpeed: mapUiSpeedToApi(speed),
+        weeklyReadCount: mapFreqToWeeklyCount(freq),
       });
-    } else {
-      // '그 외' 선택 시 Onboarding_5로 이동
-      console.log('Profile data:', { nickname, selectedGenres, speed, freq });
-      router.push('/Onboarding_5');
+
+      if (userType === 'worker_student') {
+        router.push({
+          pathname: '/Onboarding_4',
+          params: { userType: userType },
+        });
+      } else {
+        router.push('/Onboarding_5');
+      }
+    } catch (e) {
+      Alert.alert(
+        '오류',
+        e instanceof Error ? e.message : '독서 프로필 저장에 실패했습니다. 다시 시도해주세요.',
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -268,7 +300,7 @@ export default function Onboarding_3() {
                       getCircleSize(),
                       isSelected && styles.speedCircleSelected,
                     ]}
-                    onPress={() => setSpeed(index as ReadingSpeed)}
+                    onPress={() => setSpeed(index as UiReadingSpeed)}
                     activeOpacity={0.7}
                   />
                 );
@@ -329,10 +361,15 @@ export default function Onboarding_3() {
             <Text style={styles.previousButtonText}>이전</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.nextButton}
+            style={[styles.nextButton, submitting && { opacity: 0.85 }]}
             onPress={handleNext}
+            disabled={submitting}
             activeOpacity={0.6}>
-            <Text style={styles.nextButtonText}>다음</Text>
+            {submitting ? (
+              <ActivityIndicator color={COLORS.BUTTON_GREEN_TEXT} />
+            ) : (
+              <Text style={styles.nextButtonText}>다음</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>

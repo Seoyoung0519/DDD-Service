@@ -22,7 +22,6 @@ import {
   deleteRecentQuery,
   getRecentBooks,
   getRecentQueries,
-  searchBooks,
   type RecentBook,
   type RecentQuery
 } from '../src/api/search';
@@ -196,11 +195,11 @@ export default function SearchScreen_2() {
           params: { bookId: item.book.aladin_item_id, skipRecentBook: 'true' },
         });
       } else {
-        // 검색어로 다시 검색
-        // TODO: router.push('/SearchScreen_1', { initialQuery: item.query });
-        // 또는 바로 검색 실행
-        await searchBooks(item.query);
-        router.back();
+        // 검색어로 다시 검색: 검색 결과 페이지로 이동
+        router.push({
+          pathname: '/SearchResult',
+          params: { query: item.query },
+        });
       }
     } catch (error) {
       console.error('[SearchScreen_2] 항목 클릭 처리 실패:', error);
@@ -416,6 +415,7 @@ export default function SearchScreen_2() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('내서재');
+            router.push('/my-library');
           }}>
           <Image
             source={LIBRARY_ICON}

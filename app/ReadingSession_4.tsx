@@ -1,8 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+    ActivityIndicator,
+    Alert,
+    BackHandler,
     Dimensions,
     Image,
     Modal,
@@ -10,11 +14,31 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { fetchCommuteRoutes } from '@/src/api/commuteRoutes';
+import {
+  fetchRecentCommuteRoutes,
+  saveRecentCommuteRoute,
+  type RecentCommuteRoute,
+} from '@/src/api/commuteRecentRoutes';
+import { searchCommutePlaces } from '@/src/api/commutePlaces';
+import { getIdsFromSelectedBook } from '@/src/api/readingSession';
+import { CommutePlaceSearchDualCard } from '@/src/components/commute/CommutePlaceSearchDualCard';
+import { FALLBACK_COMMUTE_ROUTE_JSON } from '@/src/constants/fallbackCommuteRoute';
+import { consumeCommutePlaceSelection } from '@/src/state/commutePlaceSelection';
+import {
+  setCommuteRouteResult,
+  type CommuteSessionDraft,
+} from '@/src/state/commuteRouteResult';
+import type { CommutePlace } from '@/src/types/commute';
+import { fetchCurrentUser } from '@/src/services/auth/authService';
+import { pickPlaceForRecentRoute } from '@/src/utils/commutePlaceResolve';
+import { extractCommuteEndpointCoordsFromRoute } from '@/src/utils/commuteRouteEndpoints';
+import type { CurrentReadingItem, BookshelfItem } from '@/src/types/reading';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -75,58 +99,347 @@ const FONTS = {
   }),
 };
 
-// 최근 검색 데이터 (임시)
-const RECENT_SEARCHES = [
-  {
-    id: '1',
-    departure: '서울 용산구 한강로2가 422-2',
-    arrival: '탕화쿵푸숙대점',
-  },
-  {
-    id: '2',
-    departure: '서울용산구 녹사평대로 132-1',
-    arrival: '아이파크몰용산점',
-  },
-];
-
 export default function ReadingSession_4() {
+  const { height: windowHeight } = useWindowDimensions();
+  /** 모달 헤더·패딩 제외 본문 스크롤 영역 — 자동완성이 길어지면 스크롤 */
+  const modalFormScrollMaxHeight = Math.round(windowHeight * 0.52);
+
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedBook?: string }>();
+  const params = useLocalSearchParams<{
+    selectedBook?: string;
+    /** RS2/RS3 중 어디서 왔는지 — replace 스택에서 '이전' 복귀용 */
+    bookPickSource?: string;
+  }>();
   const [activeNav, setActiveNav] = useState('책읽기');
   const [modalVisible, setModalVisible] = useState(true);
   const [departure, setDeparture] = useState('');
   const [arrival, setArrival] = useState('');
+  /** 검색 API로 선택된 placeId — 세션 시작 시 사용 */
+  const [originPlaceId, setOriginPlaceId] = useState<string | null>(null);
+  const [destinationPlaceId, setDestinationPlaceId] = useState<string | null>(null);
+  /** 장소 검색 결과 좌표 — 읽기 세션 DB(origin_lat 등) 저장용 */
+  const [originLat, setOriginLat] = useState<number | null>(null);
+  const [originLng, setOriginLng] = useState<number | null>(null);
+  const [destinationLat, setDestinationLat] = useState<number | null>(null);
+  const [destinationLng, setDestinationLng] = useState<number | null>(null);
+  const [isStartingSession, setIsStartingSession] = useState(false);
+  /** 전체 검색에서 장소 선택 후 복귀 시 인라인 자동완성 드롭다운 비활성화 */
+  const [suppressInlineSuggestions, setSuppressInlineSuggestions] = useState(false);
+
+  const [recentRoutes, setRecentRoutes] = useState<RecentCommuteRoute[]>([]);
+  const [recentRoutesLoading, setRecentRoutesLoading] = useState(false);
+  const [resolvingRecentRoute, setResolvingRecentRoute] = useState(false);
+
+  const loadRecentRoutes = useCallback(async () => {
+    setRecentRoutesLoading(true);
+    try {
+      const list = await fetchRecentCommuteRoutes();
+      setRecentRoutes(list);
+    } catch (e) {
+      console.warn('[ReadingSession_4] 최근 경로 조회 실패:', e);
+      setRecentRoutes([]);
+    } finally {
+      setRecentRoutesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!modalVisible) return;
+    void loadRecentRoutes();
+  }, [modalVisible, loadRecentRoutes]);
+
+  /** 출발·도착 텍스트 + 검색으로 확정된 placeId — 길찾기 가능 */
+  const canFindRoute = useMemo(() => {
+    const dep = departure.trim();
+    const arr = arrival.trim();
+    if (!dep || !arr) return false;
+    if (resolvingRecentRoute) return false;
+    return Boolean(originPlaceId && destinationPlaceId);
+  }, [departure, arrival, originPlaceId, destinationPlaceId, resolvingRecentRoute]);
+
+  /** 장소 검색 화면에서 선택 후 복귀 시 반영 */
+  useFocusEffect(
+    useCallback(() => {
+      const picked = consumeCommutePlaceSelection();
+      if (!picked) return;
+      setSuppressInlineSuggestions(true);
+      if (picked.field === 'origin') {
+        setDeparture(picked.place.label);
+        setOriginPlaceId(picked.place.placeId);
+        const plat = picked.place.lat;
+        const plng = picked.place.lng;
+        setOriginLat(plat != null && Number.isFinite(plat) ? plat : null);
+        setOriginLng(plng != null && Number.isFinite(plng) ? plng : null);
+      } else {
+        setArrival(picked.place.label);
+        setDestinationPlaceId(picked.place.placeId);
+        const plat = picked.place.lat;
+        const plng = picked.place.lng;
+        setDestinationLat(plat != null && Number.isFinite(plat) ? plat : null);
+        setDestinationLng(plng != null && Number.isFinite(plng) ? plng : null);
+      }
+      void loadRecentRoutes();
+    }, [loadRecentRoutes]),
+  );
+
+  /** RS4는 replace로 열려 스택에 RS2/RS3가 없음 — 이전 화면으로는 replace로만 복귀 */
+  const navigateBackToBookPick = useCallback(() => {
+    setModalVisible(false);
+    const selectedBook = params.selectedBook;
+    const source = params.bookPickSource;
+    const backParams = selectedBook ? { selectedBook } : {};
+    if (source === 'ReadingSession_3') {
+      router.replace({ pathname: '/ReadingSession_3', params: backParams });
+    } else {
+      router.replace({ pathname: '/ReadingSession_2', params: backParams });
+    }
+  }, [params.selectedBook, params.bookPickSource, router]);
+
+  /** 안드로이드 하드웨어 뒤로가기: 스택이 RS1→RS4일 때 RS1으로 가지 않고 책 고르기로 */
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        navigateBackToBookPick();
+        return true;
+      });
+      return () => sub.remove();
+    }, [navigateBackToBookPick]),
+  );
 
   const handleClose = () => {
-    setModalVisible(false);
-    router.back();
+    navigateBackToBookPick();
   };
 
-  const handleNext = () => {
-    // TODO: 출발지와 도착지가 입력되었는지 확인 후 다음 화면으로 이동
-    if (departure.trim() && arrival.trim()) {
-      console.log('Departure:', departure);
-      console.log('Arrival:', arrival);
-      console.log('Selected book:', params.selectedBook);
-      // router.push({
-      //   pathname: '/ReadingSession_5',
-      //   params: {
-      //     selectedBook: params.selectedBook || '',
-      //     departure,
-      //     arrival,
-      //   },
-      // });
+  const handleNext = async () => {
+    if (!departure.trim() || !arrival.trim()) {
+      return;
+    }
+
+    if (isStartingSession) return;
+
+    const resolvedOrigin = originPlaceId;
+    const resolvedDestination = destinationPlaceId;
+
+    if (!resolvedOrigin || !resolvedDestination) {
+      Alert.alert(
+        '장소 선택',
+        '출발지·도착지를 검색에서 선택해 주세요. (최근 검색을 누르면 자동 선택됩니다.)',
+      );
+      return;
+    }
+
+    let selectedBook: CurrentReadingItem | BookshelfItem | null = null;
+    if (params.selectedBook) {
+      try {
+        selectedBook = JSON.parse(params.selectedBook) as
+          | CurrentReadingItem
+          | BookshelfItem;
+      } catch {
+        // 파싱 실패 시
+      }
+    }
+
+    if (!selectedBook) {
+      Alert.alert('알림', '먼저 읽을 책을 선택해 주세요.');
+      return;
+    }
+
+    const buildSessionDraft = (user: { id: string }): CommuteSessionDraft => {
+      const { userBookId, bookId } = getIdsFromSelectedBook(selectedBook!);
+      const startPage = selectedBook!.currentPage ?? 1;
+      const endPage = selectedBook!.pageCount ?? selectedBook!.currentPage ?? 1;
+      const plannedPages = Math.max(endPage - startPage + 1, 1);
+      return {
+        userId: user.id,
+        userBookId,
+        bookId,
+        startPage,
+        endPage,
+        plannedPages,
+      };
+    };
+
+    const pushFallbackRouteResult = (
+      errorMessage: string,
+      user: { id: string } | null,
+    ) => {
+      const short =
+        errorMessage.length > 320
+          ? `${errorMessage.slice(0, 320)}…`
+          : errorMessage;
+      const sessionDraft = user ? buildSessionDraft(user) : null;
+      setCommuteRouteResult({
+        departureLabel: departure.trim(),
+        arrivalLabel: arrival.trim(),
+        originPlaceId: resolvedOrigin,
+        destinationPlaceId: resolvedDestination,
+        originLat: originLat ?? undefined,
+        originLng: originLng ?? undefined,
+        destinationLat: destinationLat ?? undefined,
+        destinationLng: destinationLng ?? undefined,
+        routes: [FALLBACK_COMMUTE_ROUTE_JSON],
+        selectedRouteId: FALLBACK_COMMUTE_ROUTE_JSON.id,
+        sessionDraft,
+        warningMessage:
+          '통근 경로 조회에 실패해 예시 경로만 표시합니다.\n\n' + short,
+        isFallback: true,
+      });
+      router.push('/CommuteRouteResultScreen');
+    };
+
+    let user: { id: string } | null = null;
+
+    try {
+      setIsStartingSession(true);
+
+      user = await fetchCurrentUser();
+      const sessionDraft = buildSessionDraft(user);
+
+      const routes = await fetchCommuteRoutes({
+        originPlaceId: resolvedOrigin,
+        destinationPlaceId: resolvedDestination,
+        originLat,
+        originLng,
+        destinationLat,
+        destinationLng,
+      });
+
+      /**
+       * POST /api/commute/recent-routes — 서버 recent_routes 반영.
+       * POST /api/commute/routes 만으로는 저장 안 됨(백엔드 스펙).
+       * 장소 좌표가 없으면 경로 첫 구간 정류장 좌표로 보강.
+       */
+      const fb = routes[0]
+        ? extractCommuteEndpointCoordsFromRoute(routes[0])
+        : null;
+      const saveOLat =
+        originLat != null && Number.isFinite(originLat) ? originLat : fb?.originLat ?? null;
+      const saveOLng =
+        originLng != null && Number.isFinite(originLng) ? originLng : fb?.originLng ?? null;
+      const saveDLat =
+        destinationLat != null && Number.isFinite(destinationLat)
+          ? destinationLat
+          : fb?.destinationLat ?? null;
+      const saveDLng =
+        destinationLng != null && Number.isFinite(destinationLng)
+          ? destinationLng
+          : fb?.destinationLng ?? null;
+      if (
+        saveOLat != null &&
+        saveOLng != null &&
+        saveDLat != null &&
+        saveDLng != null
+      ) {
+        void saveRecentCommuteRoute({
+          originName: departure.trim(),
+          destinationName: arrival.trim(),
+          originLat: saveOLat,
+          originLng: saveOLng,
+          destinationLat: saveDLat,
+          destinationLng: saveDLng,
+        }).catch((e) => {
+          if (__DEV__) {
+            console.warn('[ReadingSession_4] 최근 경로 저장 실패:', e);
+          }
+        });
+      }
+
+      setCommuteRouteResult({
+        departureLabel: departure.trim(),
+        arrivalLabel: arrival.trim(),
+        originPlaceId: resolvedOrigin,
+        destinationPlaceId: resolvedDestination,
+        originLat: originLat ?? undefined,
+        originLng: originLng ?? undefined,
+        destinationLat: destinationLat ?? undefined,
+        destinationLng: destinationLng ?? undefined,
+        routes,
+        selectedRouteId: routes[0].id,
+        sessionDraft,
+      });
+      router.push('/CommuteRouteResultScreen');
+    } catch (error: any) {
+      console.error('[ReadingSession_4] 통근 경로 조회 실패:', error);
+      const msg =
+        typeof error?.message === 'string'
+          ? error.message
+          : String(error ?? '알 수 없는 오류');
+      pushFallbackRouteResult(msg, user);
+    } finally {
+      setIsStartingSession(false);
     }
   };
 
-  const handleSelectRecentSearch = (search: typeof RECENT_SEARCHES[0]) => {
-    setDeparture(search.departure);
-    setArrival(search.arrival);
-  };
+  const handleSelectRecentRoute = useCallback(
+    async (route: RecentCommuteRoute) => {
+      setSuppressInlineSuggestions(false);
+      setDeparture(route.originName);
+      setArrival(route.destinationName);
+      setOriginPlaceId(null);
+      setDestinationPlaceId(null);
+      setOriginLat(null);
+      setOriginLng(null);
+      setDestinationLat(null);
+      setDestinationLng(null);
+      setResolvingRecentRoute(true);
+      try {
+        const [originPlaces, destPlaces] = await Promise.all([
+          searchCommutePlaces(route.originName, { size: 10 }),
+          searchCommutePlaces(route.destinationName, { size: 10 }),
+        ]);
+        const oPick = pickPlaceForRecentRoute(originPlaces, route.originLat, route.originLng);
+        const dPick = pickPlaceForRecentRoute(
+          destPlaces,
+          route.destinationLat,
+          route.destinationLng,
+        );
+        if (oPick) {
+          setOriginPlaceId(oPick.placeId);
+          const olat = oPick.lat ?? route.originLat;
+          const olng = oPick.lng ?? route.originLng;
+          setOriginLat(olat != null && Number.isFinite(olat) ? olat : null);
+          setOriginLng(olng != null && Number.isFinite(olng) ? olng : null);
+        }
+        if (dPick) {
+          setDestinationPlaceId(dPick.placeId);
+          const dlat = dPick.lat ?? route.destinationLat;
+          const dlng = dPick.lng ?? route.destinationLng;
+          setDestinationLat(dlat != null && Number.isFinite(dlat) ? dlat : null);
+          setDestinationLng(dlng != null && Number.isFinite(dlng) ? dlng : null);
+        }
+      } catch (e) {
+        console.warn('[ReadingSession_4] 최근 경로 → placeId 매칭 실패:', e);
+      } finally {
+        setResolvingRecentRoute(false);
+      }
+    },
+    [],
+  );
+
+  const onSelectOrigin = useCallback((place: CommutePlace) => {
+    setDeparture(place.label);
+    setOriginPlaceId(place.placeId);
+    const plat = place.lat;
+    const plng = place.lng;
+    setOriginLat(plat != null && Number.isFinite(plat) ? plat : null);
+    setOriginLng(plng != null && Number.isFinite(plng) ? plng : null);
+    setSuppressInlineSuggestions(false);
+  }, []);
+
+  const onSelectDestination = useCallback((place: CommutePlace) => {
+    setArrival(place.label);
+    setDestinationPlaceId(place.placeId);
+    const plat = place.lat;
+    const plng = place.lng;
+    setDestinationLat(plat != null && Number.isFinite(plat) ? plat : null);
+    setDestinationLng(plng != null && Number.isFinite(plng) ? plng : null);
+    setSuppressInlineSuggestions(false);
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* 상단 헤더 */}
+      {/* 상단 헤더 - 읽을 책 PICK 화면과 동일 */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <ExpoImage source={BUS_LOGO} style={styles.logoIcon} contentFit="contain" />
@@ -148,10 +461,9 @@ export default function ReadingSession_4() {
         </View>
       </View>
 
-      {/* 회색 바 */}
       <View style={styles.divider} />
 
-      {/* 메인 컨텐츠 */}
+      {/* 메인 컨텐츠 - 읽을 책 PICK과 동일한 타이틀 */}
       <View style={styles.content}>
         <View style={styles.titleSection}>
           <View style={styles.titleRow}>
@@ -162,15 +474,14 @@ export default function ReadingSession_4() {
         </View>
       </View>
 
-      {/* 모달 팝업 */}
+      {/* 모달: 출·도착지 등록 — 길찾기 성공 시 CommuteRouteResultScreen으로 이동 */}
       <Modal
         visible={modalVisible}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={handleClose}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            {/* 모달 헤더 */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>출·도착지 등록</Text>
               <View style={styles.modalHeaderButtons}>
@@ -183,61 +494,87 @@ export default function ReadingSession_4() {
                 <TouchableOpacity
                   style={[
                     styles.nextButton,
-                    (!departure.trim() || !arrival.trim()) && styles.nextButtonDisabled,
+                    (!canFindRoute || isStartingSession) && styles.nextButtonDisabled,
                   ]}
                   onPress={handleNext}
-                  disabled={!departure.trim() || !arrival.trim()}
+                  disabled={!canFindRoute || isStartingSession}
                   activeOpacity={0.7}>
-                  <Text
-                    style={[
-                      styles.nextButtonText,
-                      (!departure.trim() || !arrival.trim()) && styles.nextButtonTextDisabled,
-                    ]}>
-                    다음
-                  </Text>
+                  {isStartingSession ? (
+                    <ActivityIndicator size="small" color={COLORS.BUTTON_TEXT} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.nextButtonText,
+                        !canFindRoute && styles.nextButtonTextDisabled,
+                      ]}>
+                      길찾기
+                    </Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* 입력 필드 */}
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.inputTop}
-                placeholder="출발지 입력"
-                placeholderTextColor={COLORS.INPUT_PLACEHOLDER}
-                value={departure}
-                onChangeText={setDeparture}
-              />
-              <View style={styles.inputDivider} />
-              <TextInput
-                style={styles.inputBottom}
-                placeholder="도착지 입력"
-                placeholderTextColor={COLORS.INPUT_PLACEHOLDER}
-                value={arrival}
-                onChangeText={setArrival}
-              />
-            </View>
-
-            {/* 최근 검색 */}
-            <Text style={styles.recentSearchTitle}>최근 검색</Text>
-            <View style={styles.recentSearchDivider} />
             <ScrollView
-              style={styles.recentSearchList}
-              contentContainerStyle={styles.recentSearchListContent}
-              showsVerticalScrollIndicator={false}>
-              {RECENT_SEARCHES.map((search) => (
-                <TouchableOpacity
-                  key={search.id}
-                  style={styles.recentSearchItem}
-                  onPress={() => handleSelectRecentSearch(search)}
-                  activeOpacity={0.7}>
-                  <Image source={LOCATION_ICON} style={styles.locationIcon} resizeMode="contain" />
-                  <Text style={styles.recentSearchText}>
-                    {search.departure} → {search.arrival}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+                style={[styles.modalFormScroll, { maxHeight: modalFormScrollMaxHeight }]}
+                contentContainerStyle={styles.modalFormScrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                {/* 출·도착지 — 통합 카드 UI + 자동완성(최대 4, 높이는 후보 수에 맞게 증가) */}
+                <View style={styles.placeFields}>
+                  <CommutePlaceSearchDualCard
+                    departure={departure}
+                    arrival={arrival}
+                    suppressInlineSuggestions={suppressInlineSuggestions}
+                    onChangeDeparture={(t) => {
+                      setSuppressInlineSuggestions(false);
+                      setDeparture(t);
+                      setOriginPlaceId(null);
+                      setOriginLat(null);
+                      setOriginLng(null);
+                    }}
+                    onChangeArrival={(t) => {
+                      setSuppressInlineSuggestions(false);
+                      setArrival(t);
+                      setDestinationPlaceId(null);
+                      setDestinationLat(null);
+                      setDestinationLng(null);
+                    }}
+                    onSelectOrigin={onSelectOrigin}
+                    onSelectDestination={onSelectDestination}
+                  />
+                </View>
+
+                <Text style={styles.recentSearchTitle}>최근 검색</Text>
+                <View style={styles.recentSearchDivider} />
+                {recentRoutesLoading ? (
+                  <View style={styles.recentSearchLoading}>
+                    <ActivityIndicator size="small" color={COLORS.PRIMARY_GREEN} />
+                    <Text style={styles.recentSearchHint}>최근 경로 불러오는 중…</Text>
+                  </View>
+                ) : recentRoutes.length === 0 ? (
+                  <Text style={styles.recentSearchEmpty}>최근 검색한 경로가 없습니다.</Text>
+                ) : (
+                  <View style={styles.recentSearchList}>
+                    {recentRoutes.map((route) => (
+                      <TouchableOpacity
+                        key={route.id}
+                        style={styles.recentSearchItem}
+                        onPress={() => void handleSelectRecentRoute(route)}
+                        disabled={resolvingRecentRoute}
+                        activeOpacity={0.7}>
+                        <Image
+                          source={LOCATION_ICON}
+                          style={styles.locationIcon}
+                          resizeMode="contain"
+                        />
+                        <Text style={styles.recentSearchText} numberOfLines={2}>
+                          {route.originName} → {route.destinationName}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
           </View>
         </View>
       </Modal>
@@ -314,7 +651,7 @@ export default function ReadingSession_4() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('내서재');
-            router.push('/Drawer_2');
+            router.push('/my-library');
           }}>
           <Image
             source={LIBRARY_ICON}
@@ -446,6 +783,7 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     padding: 24,
     maxHeight: '80%',
+    overflow: 'visible',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -502,6 +840,17 @@ const styles = StyleSheet.create({
   nextButtonTextDisabled: {
     color: COLORS.BUTTON_DISABLED_TEXT,
   },
+  modalFormScroll: {
+    flexGrow: 0,
+  },
+  modalFormScrollContent: {
+    paddingBottom: 8,
+    flexGrow: 1,
+  },
+  placeFields: {
+    marginBottom: 20,
+    overflow: 'visible',
+  },
   inputContainer: {
     marginBottom: 24,
     borderWidth: 1,
@@ -546,11 +895,26 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 12,
   },
-  recentSearchList: {
-    maxHeight: 200,
+  recentSearchLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 16,
   },
-  recentSearchListContent: {
+  recentSearchHint: {
+    fontSize: 14,
+    color: COLORS.SUBTITLE,
+    fontFamily: FONTS.REGULAR,
+  },
+  recentSearchEmpty: {
+    fontSize: 14,
+    color: COLORS.SUBTITLE,
+    fontFamily: FONTS.REGULAR,
+    paddingVertical: 12,
+  },
+  recentSearchList: {
     gap: 8,
+    paddingBottom: 4,
   },
   recentSearchItem: {
     flexDirection: 'row',

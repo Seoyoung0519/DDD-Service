@@ -126,14 +126,18 @@ export default function ReadingSession_3() {
 
   const handleClose = () => {
     setModalVisible(false);
-    router.back();
+    router.replace('/ReadingSession_1');
   };
 
   const handleNext = () => {
     if (selectedBook) {
-      router.push({
+      // replace — 전환 중 뒤에 RS3가 비치지 않도록 스택에서 제거
+      router.replace({
         pathname: '/ReadingSession_4',
-        params: { selectedBook: JSON.stringify(selectedBook) },
+        params: {
+          selectedBook: JSON.stringify(selectedBook),
+          bookPickSource: 'ReadingSession_3',
+        },
       });
     }
   };
@@ -153,6 +157,15 @@ export default function ReadingSession_3() {
     if (typeof authors === 'string') return authors;
     return authors.join(', ');
   };
+
+  /** 로딩 중: 전체 불투명 화면만 표시해 이전 스택 화면이 비치지 않게 함 */
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.fullScreenLoading} edges={['top', 'bottom']}>
+        <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+      </SafeAreaView>
+    );
+  }
 
   const renderBookItem = (book: BookshelfItem, index: number) => {
     const isSelected = selectedBook?.userBookId === book.userBookId;
@@ -289,11 +302,7 @@ export default function ReadingSession_3() {
             <Text style={styles.subtitle}>책장에 저장된 책</Text>
 
             {/* 책 목록 그리드 */}
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.PRIMARY} />
-              </View>
-            ) : bookshelfBooks.length === 0 ? (
+            {bookshelfBooks.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>책장에 저장된 책이 없습니다.</Text>
               </View>
@@ -392,7 +401,7 @@ export default function ReadingSession_3() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('내서재');
-            router.push('/Drawer_2');
+            router.push('/my-library');
           }}>
           <Image
             source={LIBRARY_ICON}
@@ -512,6 +521,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.BOLD,
   },
   modalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.MODAL_OVERLAY,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenLoading: {
     flex: 1,
     backgroundColor: COLORS.MODAL_OVERLAY,
     justifyContent: 'center',
@@ -695,11 +710,6 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 0.7,
     borderRadius: 8,
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   emptyContainer: {
     padding: 40,

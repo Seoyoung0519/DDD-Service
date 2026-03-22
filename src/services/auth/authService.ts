@@ -1,6 +1,6 @@
 // src/services/auth/authService.ts
 
-import { API_BASE_URL } from '@/src/config/api';
+import { LOGIN_API_BASE_URL } from '@/src/config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 요청에 사용할 타입
@@ -24,6 +24,13 @@ export interface GoogleLoginResponse {
 }
 
 const ACCESS_TOKEN_KEY = 'daedokdan_access_token';
+const GOOGLE_ACCESS_TOKEN_KEY = 'daedokdan_google_access_token';
+
+/** 콘솔용 마스킹 (전체 JWT 노출 방지) */
+function maskToken(t: string): string {
+  if (!t || t.length <= 14) return '***';
+  return `${t.slice(0, 8)}…${t.slice(-6)}`;
+}
 
 // 토큰 저장 함수
 export async function saveAccessToken(token: string) {
@@ -35,9 +42,74 @@ export async function getAccessToken() {
   return AsyncStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
+// Google access token 저장 (온보딩/키링 등에서 요구)
+export async function saveGoogleAccessToken(token: string) {
+  await AsyncStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, token);
+}
+
+export async function getGoogleAccessToken() {
+  return AsyncStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
+}
+
+export async function clearGoogleAccessToken() {
+  await AsyncStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
+}
+
+/**
+ * 메인 API(검색/책장/책 상세/읽기 세션 등) Authorization
+ *
+ * **항상** 로그인 응답에서 저장한 백엔드 JWT만 사용합니다 (`daedokdan_access_token` → `getAccessToken`).
+ * Google OAuth access token은 이 경로에 넣지 않습니다. (메인 API가 JWT만 검증하는 경우가 많음)
+ *
+ * 401이 계속되면: 토큰 만료 → 재로그인, 또는 로그인 서버·메인 API 간 JWT 검증 설정 불일치를 백엔드에서 확인.
+ */
+export async function getMainApiAccessToken(): Promise<string | null> {
+  return getAccessToken();
+}
+
 // 토큰 삭제 함수
 export async function clearAccessToken() {
   await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export type PrintAccessTokenDebugOptions = {
+  /** true면 __DEV__에서만 메인 API용 JWT 전체를 한 번 출력 (유출 주의) */
+  logFullJwt?: boolean;
+};
+
+/**
+ * 저장된 액세스 토큰 상태 확인용 (Metro/디버거 콘솔).
+ * - 메인 API: `daedokdan_access_token` → `getAccessToken()` (백엔드 JWT)
+ * - Google OAuth: `daedokdan_google_access_token` (별도)
+ *
+ * 사용 예: 컴포넌트에서 `useEffect(() => { void printAccessTokenDebug(); }, []);` 임시 호출
+ */
+export async function printAccessTokenDebug(
+  options?: PrintAccessTokenDebugOptions,
+): Promise<void> {
+  if (!__DEV__) {
+    console.warn('[AUTH] printAccessTokenDebug는 개발 빌드(__DEV__)에서만 동작합니다.');
+    return;
+  }
+  const jwt = await getAccessToken();
+  const google = await getGoogleAccessToken();
+  console.log('[AUTH] ========== access token debug ==========');
+  console.log(
+    '[AUTH] Main API JWT (AsyncStorage daedokdan_access_token):',
+    jwt
+      ? { length: jwt.length, masked: maskToken(jwt) }
+      : '(없음 — 로그인 필요)',
+  );
+  if (options?.logFullJwt && jwt) {
+    console.log('[AUTH] Main API JWT FULL (__DEV__ only):', jwt);
+  }
+  console.log(
+    '[AUTH] Google OAuth token:',
+    google
+      ? { length: google.length, masked: maskToken(google) }
+      : '(없음)',
+  );
+  console.log('[AUTH] =========================================');
 }
 
 // Google 로그인 API 호출
@@ -118,7 +190,7 @@ export async function loginWithGoogle(
   }
 
   const requestBody = { idToken, platform };
-  const url = `${API_BASE_URL}/api/auth/google`;
+  const url = `${LOGIN_API_BASE_URL}/api/auth/google`;
 
   let res: Response;
   try {
@@ -143,17 +215,37 @@ export async function loginWithGoogle(
     } catch (e) {
       errorText = 'Failed to read error response';
     }
-    
+
+    /** RN/fetch 환경에 따라 status가 문자열로 올 수 있음 */
+    const statusCode =
+      typeof res.status === 'number' && !Number.isNaN(res.status)
+        ? res.status
+        : parseInt(String(res.status), 10) || 0;
+
     console.error('[AUTH] Login failed:', {
-      status: res.status,
+      status: statusCode,
       statusText: res.statusText,
       errorText,
     });
-    
-    // 에러 메시지에 상세 정보 포함
-    const errorMessage = errorText 
-      ? `로그인 실패 (${res.status}): ${errorText}`
-      : `로그인 실패 (${res.status}): ${res.statusText}`;
+
+    const trimmed = errorText?.trim() ?? '';
+    const detail = trimmed || res.statusText?.trim() || '';
+
+    /** 502/503 — 본문·statusText가 비는 경우가 많음 (게이트웨이/Render 등) */
+    if (statusCode === 503 || statusCode === 502) {
+      throw new Error(
+        '로그인 서버가 일시적으로 응답하지 않습니다. (503)\n잠시 후 다시 시도하거나, 호스팅(예: Render) 상태를 확인해 주세요.',
+      );
+    }
+    if (statusCode === 504) {
+      throw new Error(
+        '로그인 요청 시간이 초과되었습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+      );
+    }
+
+    const errorMessage = detail
+      ? `로그인 실패 (${statusCode}): ${detail}`
+      : `로그인 실패 (${statusCode}). 서버 메시지가 없습니다. 잠시 후 다시 시도해 주세요.`;
     throw new Error(errorMessage);
   }
 
@@ -168,19 +260,16 @@ export async function loginWithGoogle(
   // accessToken 저장
   await saveAccessToken(data.accessToken);
 
-  // 토큰 일부만 표시 (보안을 위해)
-  const maskToken = (token: string): string => {
-    if (token.length <= 10) return '***';
-    return `${token.substring(0, 8)}...${token.substring(token.length - 8)}`;
-  };
-
-  console.log('[AUTH] ✅ Login success:', {
-    email: data.user.email,
-    userId: data.user.id,
-    accessToken: maskToken(data.accessToken),
-    accessTokenLength: data.accessToken.length,
-    expiresIn: data.expiresIn,
-  });
+  if (__DEV__) {
+    console.log('[AUTH] ✅ Login success:', {
+      email: data.user.email,
+      userId: data.user.id,
+      accessTokenLength: data.accessToken.length,
+      expiresIn: data.expiresIn,
+    });
+    // 개발 빌드에서만 전체 JWT 출력 (릴리스 __DEV__ === false 이면 출력 안 됨)
+    console.log('[AUTH] accessToken (full):', data.accessToken);
+  }
   return data;
 }
 
@@ -191,7 +280,7 @@ export async function checkSession(): Promise<boolean> {
 
   try {
     // 토큰 유효성 검증을 위해 백엔드에 요청
-    const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    const res = await fetch(`${LOGIN_API_BASE_URL}/api/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -207,7 +296,7 @@ export async function fetchCurrentUser() {
   const token = await getAccessToken();
   if (!token) throw new Error('로그인 토큰이 없습니다.');
 
-  const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+  const res = await fetch(`${LOGIN_API_BASE_URL}/api/auth/me`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

@@ -272,6 +272,7 @@ export default function SearchResult() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('내서재');
+            router.push('/my-library');
           }}>
           <Image
             source={LIBRARY_ICON}

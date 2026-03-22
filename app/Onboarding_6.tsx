@@ -1,14 +1,22 @@
+import {
+  finishReadingTest,
+  ONBOARDING_READING_TEST_STORAGE_KEY,
+  type ReadingTestStartResponse,
+} from '@/src/services/onboarding/onboardingService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -108,12 +116,48 @@ export default function Onboarding_6() {
   const [selectedAnswers, setSelectedAnswers] = useState<{ [questionId: number]: number }>({});
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [hydrating, setHydrating] = useState(true);
+  const [apiPayload, setApiPayload] = useState<ReadingTestStartResponse | null>(null);
+  const [questions, setQuestions] = useState<Question[]>(QUESTIONS);
+  const [passageBody, setPassageBody] = useState<string>(PASSAGE_TEXT);
+  const [submitting, setSubmitting] = useState(false);
 
-  // 페이지 진입 시 시작 시간 기록
+  // 서버에서 시작한 테스트면 AsyncStorage에 저장된 지문/문항 사용
   useEffect(() => {
-    const start = Date.now();
-    setStartTime(start);
+    let alive = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(ONBOARDING_READING_TEST_STORAGE_KEY);
+        if (!alive) return;
+        if (raw) {
+          const data = JSON.parse(raw) as ReadingTestStartResponse;
+          setApiPayload(data);
+          setPassageBody(data.body);
+          setQuestions([
+            {
+              id: 1,
+              text: data.question,
+              options: data.choices.map((text, i) => ({ id: i, text })),
+            },
+          ]);
+        }
+      } catch {
+        // 로컬 기본 지문 유지
+      } finally {
+        if (alive) setHydrating(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  // 데이터 준비 후 타이머 시작 (서버 지문 로드까지 포함)
+  useEffect(() => {
+    if (!hydrating && startTime === null) {
+      setStartTime(Date.now());
+    }
+  }, [hydrating, startTime]);
 
   // 경과 시간 계산 (선택사항: 실시간 표시용)
   useEffect(() => {
@@ -143,52 +187,76 @@ export default function Onboarding_6() {
     });
   };
 
-  // 모든 문제에 답변이 선택되었는지 확인
-  const allQuestionsAnswered = QUESTIONS.every(
-    (question) => selectedAnswers[question.id] !== undefined
+  const allQuestionsAnswered = questions.every(
+    (question) => selectedAnswers[question.id] !== undefined,
   );
 
-  const handleComplete = () => {
-    if (startTime === null || !allQuestionsAnswered) return;
+  const handleComplete = async () => {
+    if (startTime === null || !allQuestionsAnswered || submitting) return;
 
-    // 완료 시점의 경과 시간 계산 (밀리초 단위)
-    const totalTime = Date.now() - startTime; // 밀리초
-    const totalTimeSeconds = Math.floor(totalTime / 1000); // 초 단위
+    const totalTimeSeconds = Math.floor((Date.now() - startTime) / 1000);
 
-    // 정답 개수 계산
+    if (apiPayload) {
+      const userChoice = selectedAnswers[1];
+      if (userChoice === undefined) return;
+
+      setSubmitting(true);
+      try {
+        const finishRes = await finishReadingTest({
+          testId: apiPayload.testId,
+          elapsedSeconds: totalTimeSeconds,
+          userChoice,
+        });
+        await AsyncStorage.removeItem(ONBOARDING_READING_TEST_STORAGE_KEY);
+        router.push({
+          pathname: '/Onboarding_7',
+          params: {
+            timeTaken: totalTimeSeconds.toString(),
+            correctCount: finishRes.isCorrect ? '1' : '0',
+            totalQuestions: '1',
+          },
+        });
+      } catch (e) {
+        Alert.alert(
+          '오류',
+          e instanceof Error ? e.message : '테스트 제출에 실패했습니다. 다시 시도해주세요.',
+        );
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    // 로컬 폴백 (서버 테스트 없이 진입한 경우)
     let correctCount = 0;
-    QUESTIONS.forEach((question) => {
+    questions.forEach((question) => {
       if (question.correctAnswer && selectedAnswers[question.id] === question.correctAnswer) {
         correctCount++;
       }
     });
 
-    console.log('Selected answers:', selectedAnswers);
-    console.log('Total time taken:', totalTimeSeconds, 'seconds');
-    console.log('Correct answers:', correctCount, '/', QUESTIONS.length);
-
-    // TODO: 백엔드 API로 답안과 소요 시간 전송
-    // await submitReadingTest({
-    //   answers: selectedAnswers,
-    //   timeTaken: totalTime, // 또는 totalTimeSeconds
-    //   correctCount,
-    // });
-
-    // Onboarding_7로 이동 (결과 화면)
     router.push({
       pathname: '/Onboarding_7',
       params: {
         timeTaken: totalTimeSeconds.toString(),
         correctCount: correctCount.toString(),
-        totalQuestions: QUESTIONS.length.toString(),
+        totalQuestions: questions.length.toString(),
       },
     });
   };
 
   const getOptionNumber = (index: number) => {
-    const numbers = ['①', '②', '③', '④'];
-    return numbers[index];
+    const numbers = ['①', '②', '③', '④', '⑤', '⑥'];
+    return numbers[index] ?? `${index + 1}.`;
   };
+
+  if (hydrating) {
+    return (
+      <SafeAreaView style={[styles.container, styles.hydrateCenter]} edges={['top', 'bottom']}>
+        <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -215,7 +283,7 @@ export default function Onboarding_6() {
               style={styles.textBoxScroll}
               showsVerticalScrollIndicator={true}
               nestedScrollEnabled>
-              <Text style={styles.passageText}>{PASSAGE_TEXT}</Text>
+              <Text style={styles.passageText}>{passageBody}</Text>
             </ScrollView>
           </View>
         </View>
@@ -259,18 +327,22 @@ export default function Onboarding_6() {
         <TouchableOpacity
           style={[
             styles.completeButton,
-            allQuestionsAnswered && styles.completeButtonActive,
+            allQuestionsAnswered && !submitting && styles.completeButtonActive,
           ]}
           onPress={handleComplete}
           activeOpacity={0.6}
-          disabled={!allQuestionsAnswered}>
-          <Text
-            style={[
-              styles.completeButtonText,
-              allQuestionsAnswered && styles.completeButtonTextActive,
-            ]}>
-            완료
-          </Text>
+          disabled={!allQuestionsAnswered || submitting}>
+          {submitting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text
+              style={[
+                styles.completeButtonText,
+                allQuestionsAnswered && styles.completeButtonTextActive,
+              ]}>
+              완료
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -278,6 +350,10 @@ export default function Onboarding_6() {
 }
 
 const styles = StyleSheet.create({
+  hydrateCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',

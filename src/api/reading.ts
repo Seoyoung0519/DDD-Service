@@ -1,15 +1,14 @@
 // src/api/reading.ts
 
-import { getAccessToken } from '@/src/services/auth/authService';
+import { MAIN_API_BASE_URL } from '@/src/config/api';
+import { getMainApiAccessToken } from '@/src/services/auth/authService';
 import type { BookshelfItem, BookshelfResponse, CurrentReadingItem, CurrentReadingResponse } from '@/src/types/reading';
-
-const READING_API_BASE_URL = 'https://daedokdan-api.onrender.com';
 
 /**
  * Authorization 헤더 가져오기
  */
 async function getAuthHeader(): Promise<string> {
-  const token = await getAccessToken();
+  const token = await getMainApiAccessToken();
   if (!token) {
     throw new Error('로그인이 필요합니다.');
   }
@@ -24,7 +23,7 @@ export async function fetchCurrentReadingBooks(): Promise<CurrentReadingItem[]> 
   try {
     const authHeader = await getAuthHeader();
 
-    const url = `${READING_API_BASE_URL}/api/reading/current`;
+    const url = `${MAIN_API_BASE_URL}/api/reading/current`;
     console.log('[Reading API] Request URL:', url);
 
     const res = await fetch(url, {
@@ -75,7 +74,7 @@ export async function fetchBookshelf(): Promise<BookshelfItem[]> {
   try {
     const authHeader = await getAuthHeader();
 
-    const url = `${READING_API_BASE_URL}/api/reading/bookshelf`;
+    const url = `${MAIN_API_BASE_URL}/api/reading/bookshelf`;
     console.log('[Reading API] Request URL:', url);
 
     const res = await fetch(url, {

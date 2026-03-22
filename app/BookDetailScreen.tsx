@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +17,31 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getBookDetail, type BookDetailResponse } from '../src/api/search';
+import {
+  getBookDetail,
+  getBookDetailOrNotFound,
+  hydrateBookForDetailViaSearch,
+  type BookDetailResponse,
+} from '../src/api/search';
+import { addBookToLibraryWishlist } from '../src/api/library';
+import { fetchFeed, type FeedItemOut } from '@/src/api/feed';
+import { fetchBookReviews, type ReviewOut } from '@/src/api/reviews';
+
+function reviewOutToFeedLike(r: ReviewOut): FeedItemOut {
+  return {
+    id: r.id,
+    userId: r.userId,
+    userNickname: r.userNickname,
+    userAvatarUrl: r.userAvatarUrl,
+    bookId: r.bookId,
+    bookTitle: r.bookTitle,
+    bookThumbnailUrl: r.bookThumbnailUrl,
+    bookAuthor: r.bookAuthor,
+    reviewId: r.id,
+    reviewContent: r.content,
+    createdAt: r.createdAt,
+  };
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -83,89 +107,18 @@ interface BookDetail {
   aladinLink?: string; // 알라딘 링크
 }
 
-// 리뷰 아이템 타입 정의
-interface ReviewItem {
-  id: string;
-  nickname: string; // 닉네임 (ex. "비를 맞는 바나나_56266")
-  roleLabel: string; // '포스트' 같은 라벨
-  profileImageUrl?: string;
-  bookCoverUrl: string;
-  title: string; // 리뷰 제목 한 줄
-  content: string; // 리뷰 본문 (여러 줄)
-}
-
-// 더미 데이터
-const DUMMY_BOOK: BookDetail = {
-  id: '1',
-  title: '용의자 X의 헌신',
-  subTitle: '멈출 수 없는 완벽한 몰입감',
-  authors: ['히가시노 게이고 지음', '양억관 옮김'],
-  publisher: '재인',
-  publishedDate: '2022.06.16',
-  category: '재인·소설',
-  coverUrl: '',
-  description:
-    '히가시노 게이고의 대표작으로 평가받는 <용의자 X의 헌신>이 새롭게 번역되었다. 번역가 양억관은 원작의 문학적 감수성과 감동을 온전히 살리기 위해 번역을 세심하게 다듬었다. 이 작품은 히가시노 게이고의 장편 추리소설로, 그의 대표작 중 하나다. 출간 당년 <주간문춘미스터리 베스트 10> 1위를 차지했고, 이듬해 <본격 미스터리 대상>과 <이 미스터리가 대단하다!>에서도 1위를 기록했다.',
-  authorDescription:
-    '히가시노 게이고는 일본의 대표적인 작가로, 1958년 오사카에서 태어났다. 오사카부립대학 전기공학과를 졸업한 후 엔지니어로 일하다가, 여가 시간에 소설을 쓰기 시작해 전업 작가가 되었다. 1985년 <방과후>로 에도가와 란포상을 수상했고, 1999년 <비밀>로 일본추리작가협회상을 수상했다. 2006년에는 <용의자 X의 헌신>으로 제134회 나오키상과 본격 미스터리 대상을 수상했으며, 이 작품은 탐정 갈릴레오 시리즈의 세 번째 작품이다. 2012년에는 <나미야 잡화점의 기적>을 발표했다.',
-  publisherReview:
-    '2005년 <주간문춘미스터리 베스트 10> 1위\n2006년 제 134회 나오키상 수상, <본격 미스터리 대상> 1위, <이 미스터리가 대단하다> 1위\n2008년 일본에서 영화화 (후쿠야마 마사하루 주연, 그해 개봉한 일본 영화 중 흥행 수입 3위)',
-};
-
-// 리뷰 더미 데이터
-const dummyReviews: ReviewItem[] = [
-  {
-    id: '1',
-    nickname: '비를 맞는 바나나_56266',
-    roleLabel: '포스트',
-    bookCoverUrl: '',
-    title: '헌신적 사랑',
-    content:
-      '일본의 대표 추리소설 작가 히가시노 게이고의 명작입니다. 이 책을 읽으면서 마치 영화를 보는 것 같은 몰입감을 느꼈습니다. 특히 마지막 반전은 정말 놀라웠어요. 수학 천재와 물리학 교수의 대결이 인상 깊었습니다.',
-  },
-  {
-    id: '2',
-    nickname: '지혜로운 왁파고',
-    roleLabel: '포스트',
-    bookCoverUrl: '',
-    title: '추억의 명작, 추억속 명작',
-    content:
-      '초등학생 때 처음으로 두서의 재미를 느낀 작품입니다. 그때의 반전에 놀랐던 기억이 아직도 생생합니다. 시간이 지나 다시 읽어보니 또 다른 감동을 느낄 수 있었어요. 정말 추천하고 싶은 작품입니다.',
-  },
-  {
-    id: '3',
-    nickname: '코딩하는 개발자',
-    roleLabel: '포스트',
-    bookCoverUrl: '',
-    title: '완벽한 논리와 감동의 조화',
-    content:
-      '추리소설의 완성도를 보여주는 작품이라고 생각합니다. 논리적이고 치밀한 전개와 함께 인간적인 감동까지 담고 있어서 정말 훌륭한 작품입니다. 히가시노 게이고 작가의 다른 작품들도 읽어보고 싶어졌어요.',
-  },
-  {
-    id: '4',
-    nickname: '책을 사랑하는 사람',
-    roleLabel: '포스트',
-    bookCoverUrl: '',
-    title: '다시 읽어도 좋은 작품',
-    content:
-      '이미 여러 번 읽었지만 다시 읽어도 재미있습니다. 매번 새로운 부분을 발견하게 되고, 캐릭터들의 심리 묘사가 정말 뛰어나다고 생각합니다. 추리소설을 좋아하는 분들에게 강력 추천합니다.',
-  },
-  {
-    id: '5',
-    nickname: '독서광',
-    roleLabel: '포스트',
-    bookCoverUrl: '',
-    title: '명작의 이유',
-    content:
-      '왜 이 작품이 명작인지 알 수 있었습니다. 단순한 추리소설이 아니라 인간의 감정과 논리의 조화를 보여주는 작품이에요. 특히 마지막 장면은 정말 인상 깊었습니다.',
-  },
-];
-
 type TabKey = 'overview' | 'reviews';
 
 export default function BookDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ bookId?: string; book?: string; skipRecentBook?: string }>();
+  const params = useLocalSearchParams<{
+    bookId?: string;
+    book?: string;
+    skipRecentBook?: string;
+    /** 내 서재·완독 등에서 상세 보강(검색)용 */
+    bookTitle?: string;
+    bookAuthor?: string;
+  }>();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [activeNav, setActiveNav] = useState('투데이');
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(false);
@@ -174,6 +127,42 @@ export default function BookDetailScreen() {
   const [book, setBook] = useState<BookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
+
+  const [bookReviewItems, setBookReviewItems] = useState<FeedItemOut[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+
+  const loadBookReviews = useCallback(async () => {
+    if (!book?.id) return;
+    setReviewsLoading(true);
+    setReviewsError(null);
+    try {
+      const data = await fetchBookReviews({ bookId: book.id, limit: 30 });
+      setBookReviewItems(data.items.map(reviewOutToFeedLike));
+    } catch {
+      try {
+        const feed = await fetchFeed({ bookId: book.id, limit: 50 });
+        setBookReviewItems(feed.items.filter((i: FeedItemOut) => i.bookId === book.id));
+      } catch (e2) {
+        const msg = e2 instanceof Error ? e2.message : '리뷰를 불러오지 못했습니다.';
+        setReviewsError(msg);
+        setBookReviewItems([]);
+      }
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [book?.id]);
+
+  useEffect(() => {
+    setBookReviewItems([]);
+    setReviewsError(null);
+  }, [book?.id]);
+
+  useEffect(() => {
+    if (activeTab !== 'reviews' || !book?.id) return;
+    void loadBookReviews();
+  }, [activeTab, book?.id, loadBookReviews]);
 
   // skipRecentBook이 true인 경우에도 데이터를 로드해야 하므로 API 호출
   // 서버 측에서 중복 저장을 방지하거나, 이미 저장된 경우 업데이트만 하도록 처리
@@ -223,7 +212,7 @@ export default function BookDetailScreen() {
     };
   };
 
-  // 도서 데이터 로드
+  // 도서 데이터 로드 — GET `/api/books/:id` (내 서재 bookId가 UUID일 때 404면 제목으로 검색 보강)
   useEffect(() => {
     const loadBookDetail = async () => {
       const bookId = params.bookId;
@@ -232,13 +221,34 @@ export default function BookDetailScreen() {
         return;
       }
 
+      const skipRecent = params.skipRecentBook === 'true';
+      const titleHint =
+        typeof params.bookTitle === 'string' ? params.bookTitle.trim() : '';
+      const authorHint =
+        typeof params.bookAuthor === 'string' && params.bookAuthor.trim().length > 0
+          ? params.bookAuthor.trim()
+          : undefined;
+
       try {
         setLoading(true);
-        // skipRecentBook이 true인 경우 최근 본 책 저장을 건너뛰도록 파라미터 전달
-        const response = await getBookDetail(bookId, params.skipRecentBook === 'true');
-        const transformedBook = transformBookData(response.data);
-        setBook(transformedBook);
-      } catch (error: any) {
+        setError(null);
+
+        const first = await getBookDetailOrNotFound(bookId, skipRecent);
+        if (first.ok) {
+          setBook(transformBookData(first.data));
+          return;
+        }
+
+        if (first.status === 404 && titleHint.length > 0) {
+          const resolvedId = await hydrateBookForDetailViaSearch(bookId, titleHint, authorHint);
+          const response = await getBookDetail(resolvedId, skipRecent);
+          setBook(transformBookData(response.data));
+          return;
+        }
+
+        setBook(null);
+        setError('도서 정보를 불러오는데 실패했습니다.');
+      } catch (error: unknown) {
         console.error('[BookDetailScreen] 도서 상세 로드 실패:', error);
         setError('도서 정보를 불러오는데 실패했습니다.');
         setBook(null);
@@ -248,7 +258,7 @@ export default function BookDetailScreen() {
     };
 
     loadBookDetail();
-  }, [params.bookId, params.skipRecentBook]);
+  }, [params.bookId, params.skipRecentBook, params.bookTitle, params.bookAuthor]);
 
   // 뒤로가기 핸들러
   const handlePressBack = () => {
@@ -261,16 +271,43 @@ export default function BookDetailScreen() {
     console.log('[BookDetail] 공유 버튼 클릭');
   };
 
-  // 내서재에 담기 핸들러
-  const handleAddToShelf = () => {
+  /**
+   * 찜한 도서에 담기 — `POST` + `LIBRARY_WISHLIST_ADD_PATH` (기본 `/library/wishlist/items`, 확장 API)
+   * 서랍 책장 표지는 `POST /api/reading/bookshelf` + Drawer의 책 추가 플로우 전용.
+   */
+  const handleAddToWishlist = () => {
     if (!book) return;
-    Alert.alert('내서재에 담기', '이 책을 내서재에 추가하시겠어요?', [
+    if (isAddingToWishlist) return;
+    Alert.alert('찜한 도서에 담기', '이 책을 찜한 도서(내서재) 목록에 추가할까요?', [
       { text: '취소', style: 'cancel' },
       {
         text: '추가',
         onPress: () => {
-          // TODO: 내서재 API 연동
-          console.log('[BookDetail] 내서재에 추가:', book.id);
+          (async () => {
+            try {
+              setIsAddingToWishlist(true);
+              const { alreadyExists } = await addBookToLibraryWishlist(book.id);
+
+              if (alreadyExists) {
+                Alert.alert('알림', '이미 찜한 도서에 있는 책입니다.');
+                return;
+              }
+
+              Alert.alert('완료', '찜한 도서에 담았어요.', [
+                {
+                  text: '확인',
+                  onPress: () => router.push('/my-library'),
+                },
+              ]);
+            } catch (e: unknown) {
+              console.error('[BookDetail] 찜하기 실패:', e);
+              const message =
+                e instanceof Error ? e.message : '찜한 도서에 담는 중 문제가 발생했어요.';
+              Alert.alert('오류', message);
+            } finally {
+              setIsAddingToWishlist(false);
+            }
+          })();
         },
       },
     ]);
@@ -305,35 +342,19 @@ export default function BookDetailScreen() {
     setIsPublisherExpanded(!isPublisherExpanded);
   };
 
-  // 리뷰 관련 핸들러
-  const handlePressReviewMore = (item: ReviewItem) => {
-    // TODO: 리뷰 더보기 옵션 메뉴 표시
-    console.log('[BookDetail] 리뷰 더보기:', item.id);
-  };
+  // 리뷰 카드 (해당 도서 공개 리뷰 — GET /reviews/book/:id, 실패 시 GET /feed?bookId= 필터)
+  const ReviewCard = ({ item }: { item: FeedItemOut }) => {
+    const displayName = item.userNickname?.trim() || '독서가';
+    const coverUri = item.bookThumbnailUrl?.trim() || book?.coverUrl?.trim() || '';
 
-  const handlePressReviewBookCover = (item: ReviewItem) => {
-    // TODO: 리뷰의 책 표지 클릭 시 동작 (예: 책 상세로 이동)
-    console.log('[BookDetail] 리뷰 책 표지 클릭:', item.id);
-  };
-
-  const handlePressSeeMore = (item: ReviewItem) => {
-    // TODO: 리뷰 상세 페이지로 이동
-    console.log('[BookDetail] 리뷰 자세히 보기:', item.id);
-  };
-
-  // 리뷰 섹션 렌더링
-  // 리뷰 카드 컴포넌트
-  const ReviewCard = ({ item }: { item: ReviewItem }) => {
     return (
       <View style={styles.reviewCardContainer}>
-        {/* 상단 사용자 정보 행 */}
         <View style={styles.reviewUserRow}>
           <View style={styles.reviewUserLeft}>
-            {/* 프로필 이미지 */}
             <View style={styles.reviewProfileImage}>
-              {item.profileImageUrl ? (
+              {item.userAvatarUrl?.trim() ? (
                 <ExpoImage
-                  source={{ uri: item.profileImageUrl }}
+                  source={{ uri: item.userAvatarUrl }}
                   style={styles.reviewProfileImageInner}
                   contentFit="cover"
                 />
@@ -341,30 +362,20 @@ export default function BookDetailScreen() {
                 <Ionicons name="person" size={16} color="#999" />
               )}
             </View>
-            {/* 닉네임 + 라벨 */}
             <View style={styles.reviewUserInfo}>
-              <Text style={styles.reviewNickname}>{item.nickname}</Text>
-              <Text style={styles.reviewRoleLabel}>{item.roleLabel}</Text>
+              <Text style={styles.reviewNickname} numberOfLines={1}>
+                {displayName}
+              </Text>
+              <Text style={styles.reviewRoleLabel}>포스트</Text>
             </View>
           </View>
-          {/* 우측 더보기 버튼 */}
-          <TouchableOpacity
-            onPress={() => handlePressReviewMore(item)}
-            style={styles.reviewMoreButton}
-            activeOpacity={0.7}>
-            <Ionicons name="ellipsis-vertical" size={18} color="#999" />
-          </TouchableOpacity>
         </View>
 
-        {/* 중간 책 이미지 영역 */}
-        <TouchableOpacity
-          onPress={() => handlePressReviewBookCover(item)}
-          style={styles.reviewBookImageContainer}
-          activeOpacity={0.8}>
+        <View style={styles.reviewBookImageContainer}>
           <View style={styles.reviewBookImageWrapper}>
-            {item.bookCoverUrl || book?.coverUrl ? (
+            {coverUri ? (
               <ExpoImage
-                source={{ uri: item.bookCoverUrl || book?.coverUrl || '' }}
+                source={{ uri: coverUri }}
                 style={styles.reviewBookImage}
                 contentFit="contain"
                 placeholder={BOOK1_COVER}
@@ -373,35 +384,49 @@ export default function BookDetailScreen() {
               <Image source={BOOK1_COVER} style={styles.reviewBookImage} resizeMode="contain" />
             )}
           </View>
-        </TouchableOpacity>
+        </View>
 
-        {/* 하단 리뷰 텍스트 + 자세히 보기 */}
         <View style={styles.reviewTextSection}>
-          <Text style={styles.reviewTitle}>{item.title}</Text>
-          <Text style={styles.reviewContent} numberOfLines={4}>
-            {item.content}
+          <Text style={styles.reviewTitle} numberOfLines={2}>
+            {item.bookTitle?.trim() || book?.title || '리뷰'}
           </Text>
-          <TouchableOpacity
-            onPress={() => handlePressSeeMore(item)}
-            style={styles.reviewSeeMoreButton}
-            activeOpacity={0.7}>
-            <Text style={styles.reviewSeeMoreText}>자세히 보기</Text>
-          </TouchableOpacity>
+          <Text style={styles.reviewContent}>{item.reviewContent}</Text>
         </View>
       </View>
     );
   };
 
   const renderReviewsTab = () => {
+    if (reviewsLoading && bookReviewItems.length === 0) {
+      return (
+        <View style={styles.reviewsLoadingWrap}>
+          <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+        </View>
+      );
+    }
+    if (reviewsError) {
+      return (
+        <View style={styles.reviewsLoadingWrap}>
+          <Text style={[styles.blockText, styles.blockTextMuted, { textAlign: 'center' }]}>{reviewsError}</Text>
+        </View>
+      );
+    }
+    if (bookReviewItems.length === 0) {
+      return (
+        <View style={styles.reviewsLoadingWrap}>
+          <Text style={[styles.blockText, styles.blockTextMuted]}>아직 등록된 리뷰가 없습니다.</Text>
+        </View>
+      );
+    }
     return (
       <View style={styles.reviewTabContainer}>
         <FlatList
-          data={dummyReviews}
-          keyExtractor={(item) => item.id}
+          data={bookReviewItems}
+          keyExtractor={(item) => item.reviewId || item.id}
           renderItem={({ item }) => <ReviewCard item={item} />}
           contentContainerStyle={styles.reviewListContent}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={false} // 외부 ScrollView가 스크롤 처리
+          scrollEnabled={false}
         />
       </View>
     );
@@ -411,21 +436,27 @@ export default function BookDetailScreen() {
   // 책소개 탭 렌더링
   const renderOverviewTab = () => {
     if (!book) return null;
-    
+
+    const overviewText = book.description?.trim() ?? '';
+    const hasOverview = overviewText.length > 0;
+    const overviewEmptyMessage = '책 정보를 제공하지 않습니다.';
+
     return (
       <View style={styles.tabContent}>
         {/* 책소개 블록 */}
         <View style={styles.contentBlock}>
           <Text style={styles.blockTitle}>책소개</Text>
           <Text
-            style={styles.blockText}
-            numberOfLines={isOverviewExpanded ? undefined : 4}
+            style={[styles.blockText, !hasOverview && styles.blockTextMuted]}
+            numberOfLines={!hasOverview ? undefined : isOverviewExpanded ? undefined : 4}
             ellipsizeMode="tail">
-            {book.description}
+            {hasOverview ? overviewText : overviewEmptyMessage}
           </Text>
-          <TouchableOpacity onPress={toggleOverview} style={styles.moreButton}>
-            <Text style={styles.moreButtonText}>{isOverviewExpanded ? '접기' : '더보기'}</Text>
-          </TouchableOpacity>
+          {hasOverview && (
+            <TouchableOpacity onPress={toggleOverview} style={styles.moreButton}>
+              <Text style={styles.moreButtonText}>{isOverviewExpanded ? '접기' : '더보기'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 저자 소개 블록 */}
@@ -545,7 +576,7 @@ export default function BookDetailScreen() {
                   onPress={() => setActiveTab('reviews')}
                   activeOpacity={0.7}>
                   <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
-                    리뷰(342)
+                    리뷰{reviewsLoading ? '' : `(${bookReviewItems.length})`}
                   </Text>
                   {activeTab === 'reviews' && <View style={styles.tabIndicator} />}
                 </TouchableOpacity>
@@ -563,10 +594,10 @@ export default function BookDetailScreen() {
       <View style={styles.bottomButtonBar}>
         <TouchableOpacity
           style={styles.bottomButtonLeft}
-          onPress={handleAddToShelf}
+          onPress={handleAddToWishlist}
           activeOpacity={0.7}>
-          <Ionicons name="library-outline" size={20} color={COLORS.TEXT} style={styles.buttonIcon} />
-          <Text style={styles.bottomButtonLeftText}>내서재에 담기</Text>
+          <Ionicons name="heart-outline" size={20} color={COLORS.TEXT} style={styles.buttonIcon} />
+          <Text style={styles.bottomButtonLeftText}>찜한 도서에 담기</Text>
         </TouchableOpacity>
         <View style={styles.buttonDivider} />
         <TouchableOpacity
@@ -627,6 +658,7 @@ export default function BookDetailScreen() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('내서재');
+            router.push('/my-library');
           }}>
           <Image
             source={LIBRARY_ICON}
@@ -850,6 +882,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 8,
   },
+  blockTextMuted: {
+    color: '#888888',
+  },
   moreButton: {
     alignSelf: 'flex-end',
     marginTop: 4,
@@ -922,8 +957,12 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
-  reviewMoreButton: {
-    padding: 4,
+  reviewsLoadingWrap: {
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
   },
   // 중간 책 이미지 영역
   reviewBookImageContainer: {
@@ -959,17 +998,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
     color: '#555',
     lineHeight: 20,
-  },
-  reviewSeeMoreButton: {
-    alignSelf: 'center',
-    marginTop: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  reviewSeeMoreText: {
-    fontSize: 13,
-    fontFamily: FONTS.REGULAR,
-    color: '#666',
   },
   // 하단 버튼 바
   bottomButtonBar: {

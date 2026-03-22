@@ -1,11 +1,8 @@
-import { fetchCurrentReadingBooks } from '@/src/api/reading';
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
     Dimensions,
     Image,
     Modal,
@@ -17,12 +14,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { hasPendingCommuteReadingRecommend } from '@/src/state/commuteReadingRecommend';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
 const BELL_ICON_HEADER = require('../assets/images/drawer/bell.png');
-const BOOKSHELF_ICON = require('../assets/images/reading_session/책장에서 불러오기.png');
+const BOOKSHELF_ICON = require('../assets/images/reading_session/bookshelf-load.png');
 const READING_BOOK_ICON = require('../assets/images/reading_session/독서중 불러오기.png');
 
 // 하단 네비게이션 아이콘
@@ -77,40 +76,41 @@ const FONTS = {
 
 export default function ReadingSession_1() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ hidePickModal?: string }>();
   const [activeNav, setActiveNav] = useState('책읽기');
-  const [modalVisible, setModalVisible] = useState(true);
+  const [modalVisible, setModalVisible] = useState(() => params.hidePickModal !== '1');
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [loadingBooks, setLoadingBooks] = useState(false);
+
+  /** 통근 분량 추천 진입 시 — PICK 모달을 띄우지 않아 메인 독서 화면이 보이게 */
+  useEffect(() => {
+    if (params.hidePickModal === '1') {
+      setModalVisible(false);
+    }
+  }, [params.hidePickModal]);
+
+  /** 경로 결과 → 책읽기로 온 뒤, 분량 추천 모달을 그 위에 표시 */
+  useEffect(() => {
+    if (!hasPendingCommuteReadingRecommend()) return;
+    const t = setTimeout(() => {
+      router.push('/CommuteReadingRecommendScreen');
+    }, 0);
+    return () => clearTimeout(t);
+  }, [router]);
 
   const handleClose = () => {
     setModalVisible(false);
     router.push('/ReadingIntroScreen');
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (selectedOption === 'bookshelf') {
-      // 책장에서 불러오기 선택 시 ReadingSession_3로 이동
-      router.push('/ReadingSession_3');
+      // 책장에서 불러오기 — PICK 화면이 스택에 남지 않도록 replace (뒤에 겹쳐 보이지 않게)
+      setModalVisible(false);
+      router.replace('/ReadingSession_3');
     } else if (selectedOption === 'reading') {
-      // 독서 중인 책 불러오기 선택 시 API 호출 후 ReadingSession_2로 이동
-      try {
-        setLoadingBooks(true);
-        const books = await fetchCurrentReadingBooks();
-        
-        if (books.length === 0) {
-          Alert.alert('알림', '독서 중인 책이 없습니다.');
-          setLoadingBooks(false);
-          return;
-        }
-
-        // API 호출 성공 시 ReadingSession_2로 이동
-        router.push('/ReadingSession_2');
-      } catch (error: any) {
-        console.error('[ReadingSession_1] 책 목록 불러오기 실패:', error);
-        Alert.alert('오류', error?.message || '책 목록을 불러오는데 실패했습니다.');
-      } finally {
-        setLoadingBooks(false);
-      }
+      // 독서 중인 책 — 목록은 ReadingSession_2에서 로드 (전체 화면 반투명 로딩)
+      setModalVisible(false);
+      router.replace('/ReadingSession_2');
     }
   };
 
@@ -182,22 +182,18 @@ export default function ReadingSession_1() {
                 <TouchableOpacity
                   style={[
                     styles.nextButton,
-                    (!selectedOption || loadingBooks) && styles.nextButtonDisabled,
+                    !selectedOption && styles.nextButtonDisabled,
                   ]}
                   onPress={handleNext}
-                  disabled={!selectedOption || loadingBooks}
+                  disabled={!selectedOption}
                   activeOpacity={0.7}>
-                  {loadingBooks ? (
-                    <ActivityIndicator size="small" color={COLORS.BUTTON_TEXT} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.nextButtonText,
-                        !selectedOption && styles.nextButtonTextDisabled,
-                      ]}>
-                      다음
-                    </Text>
-                  )}
+                  <Text
+                    style={[
+                      styles.nextButtonText,
+                      !selectedOption && styles.nextButtonTextDisabled,
+                    ]}>
+                    다음
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -316,7 +312,7 @@ export default function ReadingSession_1() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('내서재');
-            router.push('/Drawer_2');
+            router.push('/my-library');
           }}>
           <Image
             source={LIBRARY_ICON}
@@ -507,6 +503,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginBottom: 24,
+    overflow: 'visible',
   },
   optionButton: {
     flex: 1,
@@ -518,6 +515,7 @@ const styles = StyleSheet.create({
     minHeight: 140,
     borderWidth: 2,
     borderColor: 'transparent',
+    overflow: 'visible',
   },
   optionButtonSelected: {
     borderColor: COLORS.PRIMARY,
@@ -526,8 +524,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
-    marginRight: -14,
-    marginBottom: -5,
+    marginTop: 8,
+    marginRight: 12,
+    marginBottom: -8,
   },
   optionIcon1: {
     width: 70,
@@ -537,7 +536,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
-    marginRight: -14,
+    marginRight: -4,
     marginBottom: -20,
   },
   optionIcon2: {

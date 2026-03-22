@@ -116,14 +116,19 @@ export default function ReadingSession_2() {
 
   const handleClose = () => {
     setModalVisible(false);
-    router.back();
+    router.replace('/ReadingSession_1');
   };
 
   const handleNext = () => {
     if (selectedBook) {
-      router.push({
+      // replace — 전환 중 뒤에 RS2가 비치지 않도록 스택에서 제거
+      // RS4에서 '이전'은 bookPickSource로 RS2로 replace 복귀
+      router.replace({
         pathname: '/ReadingSession_4',
-        params: { selectedBook: JSON.stringify(selectedBook) },
+        params: {
+          selectedBook: JSON.stringify(selectedBook),
+          bookPickSource: 'ReadingSession_2',
+        },
       });
     }
   };
@@ -143,6 +148,15 @@ export default function ReadingSession_2() {
     if (typeof authors === 'string') return authors;
     return authors.join(', ');
   };
+
+  /** 로딩 중: 전체 반투명 검정 + 스피너 (ReadingSession_3와 동일) */
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.fullScreenLoading} edges={['top', 'bottom']}>
+        <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -223,11 +237,7 @@ export default function ReadingSession_2() {
             <Text style={styles.subtitle}>현재 독서 중인 책</Text>
 
             {/* 책 목록 */}
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.PRIMARY} />
-              </View>
-            ) : readingBooks.length === 0 ? (
+            {readingBooks.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>독서 중인 책이 없습니다.</Text>
               </View>
@@ -391,7 +401,7 @@ export default function ReadingSession_2() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('내서재');
-            router.push('/Drawer_2');
+            router.push('/my-library');
           }}>
           <Image
             source={LIBRARY_ICON}
@@ -511,6 +521,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.BOLD,
   },
   modalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.MODAL_OVERLAY,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenLoading: {
     flex: 1,
     backgroundColor: COLORS.MODAL_OVERLAY,
     justifyContent: 'center',
@@ -716,11 +732,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 80,
     borderRadius: 4,
-  },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   emptyContainer: {
     padding: 40,

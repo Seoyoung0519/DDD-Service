@@ -1,14 +1,22 @@
+import {
+  ONBOARDING_READING_TEST_STORAGE_KEY,
+  skipReadingTest,
+  startReadingTest,
+} from '@/src/services/onboarding/onboardingService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -59,20 +67,45 @@ const FONTS = {
 
 export default function Onboarding_5() {
   const router = useRouter();
+  const [starting, setStarting] = useState(false);
+  const [skipping, setSkipping] = useState(false);
 
   const handlePrevious = () => {
     router.back();
   };
 
-  const handleSkip = () => {
-    // 건너뛰기 - Onboarding_8로 이동
-    router.replace('/Onboarding_8');
+  const handleSkip = async () => {
+    if (skipping || starting) return;
+    setSkipping(true);
+    try {
+      await skipReadingTest();
+      await AsyncStorage.removeItem(ONBOARDING_READING_TEST_STORAGE_KEY);
+      router.replace('/Onboarding_8');
+    } catch (e) {
+      Alert.alert(
+        '오류',
+        e instanceof Error ? e.message : '건너뛰기 요청에 실패했습니다. 다시 시도해주세요.',
+      );
+    } finally {
+      setSkipping(false);
+    }
   };
 
-  const handleStart = () => {
-    // 시작하기 버튼 클릭 시 독서 속도 테스트 화면으로 이동
-    console.log('독서 속도 테스트 시작');
-    router.push('/Onboarding_6');
+  const handleStart = async () => {
+    if (starting || skipping) return;
+    setStarting(true);
+    try {
+      const data = await startReadingTest();
+      await AsyncStorage.setItem(ONBOARDING_READING_TEST_STORAGE_KEY, JSON.stringify(data));
+      router.push('/Onboarding_6');
+    } catch (e) {
+      Alert.alert(
+        '오류',
+        e instanceof Error ? e.message : '테스트 시작 요청에 실패했습니다. 다시 시도해주세요.',
+      );
+    } finally {
+      setStarting(false);
+    }
   };
 
   return (
@@ -103,14 +136,19 @@ export default function Onboarding_5() {
         <View style={styles.startSection}>
           <Text style={styles.startLabel}>시작하기</Text>
           <TouchableOpacity
-            style={styles.circleButton}
+            style={[styles.circleButton, (starting || skipping) && { opacity: 0.7 }]}
             onPress={handleStart}
+            disabled={starting || skipping}
             activeOpacity={0.7}>
-            <Ionicons
-              name="arrow-forward"
-              size={32}
-              color={COLORS.CIRCLE_BUTTON_ICON}
-            />
+            {starting ? (
+              <ActivityIndicator color={COLORS.CIRCLE_BUTTON_ICON} />
+            ) : (
+              <Ionicons
+                name="arrow-forward"
+                size={32}
+                color={COLORS.CIRCLE_BUTTON_ICON}
+              />
+            )}
           </TouchableOpacity>
           {/* 점 인디케이터 */}
           <View style={styles.dotIndicator} />
@@ -126,10 +164,15 @@ export default function Onboarding_5() {
           <Text style={styles.previousButtonText}>이전</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.skipButton}
+          style={[styles.skipButton, skipping && { opacity: 0.7 }]}
           onPress={handleSkip}
+          disabled={skipping || starting}
           activeOpacity={0.6}>
-          <Text style={styles.skipButtonText}>건너뛰기</Text>
+          {skipping ? (
+            <ActivityIndicator color={COLORS.BUTTON_TEXT} />
+          ) : (
+            <Text style={styles.skipButtonText}>건너뛰기</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

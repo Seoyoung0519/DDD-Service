@@ -14,7 +14,7 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 import { GOOGLE_WEB_CLIENT_ID } from '@/src/constants/auth';
 
-import { loginWithGoogle } from '@/src/services/auth/authService';
+import { loginWithGoogle, saveGoogleAccessToken } from '@/src/services/auth/authService';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -40,6 +40,9 @@ export type GoogleLoginResult = {
 
   idToken: string;
 
+  // Google OAuth access token (온보딩/키링 등에서 요구)
+  accessToken?: string;
+
   user: GoogleLoginUser;
 
 };
@@ -54,6 +57,10 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
   const handleLoginSuccess = useCallback(
     async (result: GoogleLoginResult) => {
       try {
+        if (result.accessToken) {
+          await saveGoogleAccessToken(result.accessToken);
+        }
+
         // 백엔드로 idToken 전달
         const authResponse = await loginWithGoogle({
           idToken: result.idToken,
@@ -62,8 +69,8 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
 
         console.log('[AUTH] ✅ Login success:', authResponse.user.email);
 
-        // onSuccess 콜백 호출 (온보딩 화면으로 네비게이션 등)
-        onSuccess?.(result);
+        // onSuccess 콜백 호출 (온보딩 화면으로 네비게이션 등) - await로 라우팅 완료 보장
+        await onSuccess?.(result);
       } catch (error: any) {
         console.error('[AUTH] ❌ Login error:', error);
         Alert.alert(
@@ -213,6 +220,11 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
           console.log('[WEB] Login successful');
 
           const result: GoogleLoginResult = { platform: 'web', idToken, user };
+
+          // web: access_token이 있으면 Google access token으로 저장
+          if (accessToken) {
+            result.accessToken = accessToken;
+          }
           
           try {
             await handleLoginSuccess(result);
@@ -294,11 +306,22 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
           signInResult?.data?.id_token ??
           signInResult?.id_token;
 
-        // idToken이 없으면 getTokens()로 시도
-        if (!idToken) {
+        // accessToken 추출 - 여러 가능한 경로 확인
+        let accessToken: string | undefined =
+          signInResult?.data?.accessToken ??
+          signInResult?.accessToken ??
+          signInResult?.data?.access_token ??
+          signInResult?.access_token;
+
+        // idToken 또는 accessToken이 없으면 getTokens()로 시도
+        if (!idToken || !accessToken) {
           try {
             const tokens = await GoogleSignin.getTokens();
             idToken = tokens?.idToken;
+            accessToken =
+              tokens?.accessToken ??
+              // @ts-ignore - 케이스별 키 지원
+              tokens?.access_token;
           } catch (e) {
             // getTokens 실패는 무시
           }
@@ -338,7 +361,7 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
 
         };
 
-        const result: GoogleLoginResult = { platform: 'android', idToken, user };
+        const result: GoogleLoginResult = { platform: 'android', idToken, user, accessToken };
         
         try {
           await handleLoginSuccess(result);

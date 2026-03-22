@@ -3,9 +3,11 @@ import { Image as ExpoImage } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
   Image,
+  InteractionManager,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,13 +18,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getBookshelfList, type BookshelfItem } from '../src/api/bookshelf';
 import AddToShelfModal from './AddToShelfModal';
+import {
+  fetchKeyrings,
+  generateKeyring,
+  KeyringGenerateNotFoundError,
+  KeyringInvalidTokenError,
+  type Keyring,
+} from '@/src/services/keyring/keyringService';
+import { FeedTimeline } from '@/src/components/feed/FeedTimeline';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // 이미지 경로 (app 바로 아래에 있으므로 한 단계만 올라감)
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
 const BELL_ICON = require('../assets/images/drawer/bell.png');
-const KEYRING_IMAGE = require('../assets/images/drawer/키링.png');
+const KEYRING_IMAGE = require('../assets/images/drawer/빈키링.png');
 const BOOK1_COVER = require('../assets/images/drawer/book1.png');
 const BOOK2_COVER = require('../assets/images/drawer/book2.png');
 const BOOKSHELF_IMAGE = require('../assets/images/drawer/bookshelf.png');
@@ -119,7 +129,10 @@ export default function HomeShelf() {
   const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
   const [bookshelfItems, setBookshelfItems] = useState<BookshelfItem[]>([]);
   const [readingBooks, setReadingBooks] = useState<BookshelfItem[]>([]);
+  const [completedBooks, setCompletedBooks] = useState<BookshelfItem[]>([]);
   const [currentShelfIndex, setCurrentShelfIndex] = useState(0);
+  const [latestKeyring, setLatestKeyring] = useState<Keyring | null>(null);
+  const [isGeneratingKeyring, setIsGeneratingKeyring] = useState(false);
 
 
   // 책장 목록 불러오기
@@ -129,20 +142,113 @@ export default function HomeShelf() {
       // API 응답 구조: { reading: [], planned: [], completed: [], dropped: [] }
       const plannedBooks = res.data?.planned || [];
       const readingBooksData = res.data?.reading || [];
+      const completedBooksData = res.data?.completed || [];
       
       setBookshelfItems(plannedBooks);
       setReadingBooks(readingBooksData);
+      setCompletedBooks(completedBooksData);
     } catch (err) {
       console.error('[Drawer_1] 책장 목록 불러오기 실패:', err);
       setBookshelfItems([]);
       setReadingBooks([]);
+      setCompletedBooks([]);
     }
   };
 
-  // 페이지에 포커스될 때마다 책장 목록 불러오기
+  /** GET /keyrings — 목록의 image_path(→ imageUrl)로 미리보기. 생성 직후엔 preferKeyringId 로 맞춤 */
+  const loadKeyrings = async (options?: { preferKeyringId?: string }) => {
+    try {
+      const keyrings = await fetchKeyrings();
+      if (keyrings && keyrings.length > 0) {
+        const preferred = options?.preferKeyringId
+          ? keyrings.find((k) => k.keyringId === options.preferKeyringId) ?? keyrings[0]
+          : keyrings[0];
+        setLatestKeyring(preferred);
+      } else {
+        setLatestKeyring(null);
+      }
+    } catch (err) {
+      if (err instanceof KeyringInvalidTokenError) {
+        if (__DEV__) {
+          console.warn(
+            '[Drawer_1] 키링 API가 JWT를 거부했습니다. 로그인 서버와 키링 호스트의 토큰 검증 설정을 맞추거나, 다시 로그인해 보세요.',
+          );
+        }
+      } else {
+        console.error('[Drawer_1] 키링 목록 불러오기 실패:', err);
+      }
+      setLatestKeyring(null);
+    }
+  };
+
+  const handleGenerateKeyring = async () => {
+    if (!completedBooks || completedBooks.length === 0) {
+      Alert.alert('키링 생성', '완독한 책이 없습니다. 먼저 책을 완독해 주세요.');
+      return;
+    }
+
+    if (isGeneratingKeyring) {
+      return;
+    }
+
+    // 가장 최근에 완독한 책을 기준으로 키링 생성
+    const sorted = [...completedBooks].sort((a, b) => {
+      const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    const target = sorted[0];
+    if (!target.bookId?.trim()) {
+      Alert.alert('키링 생성', '완독한 책의 bookId가 없어 키링을 만들 수 없습니다.');
+      return;
+    }
+
+    try {
+      setIsGeneratingKeyring(true);
+      // 1) 완독 책 기반 생성 (POST /badges/keyring — 본문 키는 book_id 또는 bookId, src/config/api.ts 참고)
+      const result = await generateKeyring({ bookId: target.bookId });
+      // 2) 화면 이미지는 GET /keyrings 목록의 image_path 기준으로 갱신
+      await loadKeyrings({ preferKeyringId: result.keyringId });
+      Alert.alert('키링 생성 완료', '가장 최근에 완독한 책으로 키링을 생성했어요.');
+    } catch (err: any) {
+      if (err instanceof KeyringInvalidTokenError) {
+        if (__DEV__) {
+          console.warn('[Drawer_1] 키링 생성: Invalid token (서버 JWT 설정 확인)');
+        }
+        Alert.alert(
+          '키링을 불러올 수 없어요',
+          '로그인이 만료되었거나 키링 서버와 연동 설정이 맞지 않을 수 있어요. 다시 로그인한 뒤 시도해 주세요.',
+        );
+      } else if (err instanceof KeyringGenerateNotFoundError) {
+        if (__DEV__) {
+          console.warn('[Drawer_1] 키링 생성 404 — POST /badges/keyring 없음. 호스트:', err.baseUrl);
+        }
+        Alert.alert(
+          '키링 생성 API를 찾을 수 없어요',
+          '백엔드에 POST /badges/keyring 가 배포되어 있지 않거나, 키링 서버 주소(EXPO_PUBLIC_KEYRING_API_BASE_URL)가 다를 수 있어요.\n\n목록 조회(GET /keyrings)만 되는 환경이면 생성은 서버 배포 후 이용할 수 있어요.',
+        );
+      } else {
+        console.error('[Drawer_1] 키링 생성 실패:', err);
+        Alert.alert('키링 생성 실패', err?.message || '키링을 생성하는 중 오류가 발생했습니다.');
+      }
+    } finally {
+      setIsGeneratingKeyring(false);
+    }
+  };
+
+  // 페이지에 포커스될 때마다 책장·키링 (전환 애니메이션 후 로드로 체감 지연 완화)
   useFocusEffect(
     useCallback(() => {
-      loadBookshelf();
+      let cancelled = false;
+      InteractionManager.runAfterInteractions(() => {
+        if (cancelled) return;
+        loadBookshelf();
+        loadKeyrings();
+      });
+      return () => {
+        cancelled = true;
+      };
     }, [])
   );
 
@@ -228,11 +334,26 @@ export default function HomeShelf() {
             ]}>
             피드
           </Text>
-          {activeTab === '피드' && <View style={styles.tabIndicator} />}
+          {activeTab === '피드' && <View style={[styles.tabIndicator, styles.tabIndicatorFeed]} />}
         </TouchableOpacity>
       </View>
 
-      {/* 메인 콘텐츠 */}
+      {/* 메인 콘텐츠: 피드 탭이면 GET /feed 타임라인만 (투데이) */}
+      {activeTab === '피드' ? (
+        <FeedTimeline
+          onPressBook={(bookId, bookTitle, bookAuthor) => {
+            router.push({
+              pathname: '/BookDetailScreen',
+              params: {
+                bookId,
+                skipRecentBook: 'true',
+                bookTitle: bookTitle ?? '',
+                bookAuthor: bookAuthor ?? '',
+              },
+            });
+          }}
+        />
+      ) : (
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -261,8 +382,30 @@ export default function HomeShelf() {
                       장식이 달라지니 모으는 재미가 있을 거예요!
                     </Text>
                     <View style={styles.keyringImageContainer}>
-                      <ExpoImage source={KEYRING_IMAGE} style={styles.keyringImage} contentFit="contain" />
+                      <ExpoImage
+                        source={
+                          latestKeyring?.imageUrl
+                            ? { uri: latestKeyring.imageUrl }
+                            : KEYRING_IMAGE
+                        }
+                        style={styles.keyringImage}
+                        contentFit="contain"
+                      />
+                      {!latestKeyring?.imageUrl && (
+                        <Text style={styles.keyringEmptyText}>아직 완독한 책이 없어요!</Text>
+                      )}
                       <View style={styles.keyringActions}>
+                        <TouchableOpacity
+                          style={styles.actionButton}
+                          onPress={handleGenerateKeyring}
+                          disabled={isGeneratingKeyring}
+                        >
+                          <Ionicons
+                            name={isGeneratingKeyring ? 'time-outline' : 'sparkles-outline' as any}
+                            size={20}
+                            color={COLORS.TEXT}
+                          />
+                        </TouchableOpacity>
                         <TouchableOpacity style={styles.actionButton}>
                           <Ionicons name="download-outline" size={20} color={COLORS.TEXT} />
                         </TouchableOpacity>
@@ -509,6 +652,7 @@ export default function HomeShelf() {
           </ScrollView>
         </View>
       </ScrollView>
+      )}
 
       {/* 책 추가 모달 (검색 기능 포함) */}
       <AddToShelfModal
@@ -586,7 +730,10 @@ export default function HomeShelf() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveNav('내서재')}>
+          onPress={() => {
+            setActiveNav('내서재');
+            router.push('/my-library');
+          }}>
           <Image
             source={LIBRARY_ICON}
             style={[
@@ -710,6 +857,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.PRIMARY,
     borderRadius: 1,
   },
+  /** 피드 탭 — 시안: 굵은 검정 밑줄 */
+  tabIndicatorFeed: {
+    backgroundColor: '#111111',
+    height: 3,
+  },
   scrollView: {
     flex: 1,
   },
@@ -751,6 +903,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 280,
     maxWidth: 350,
+  },
+  keyringEmptyText: {
+    marginTop: 12,
+    fontSize: 13,
+    fontFamily: FONTS.REGULAR,
+    color: COLORS.SUBTITLE,
+    textAlign: 'center',
   },
   keyringActions: {
     position: 'absolute',

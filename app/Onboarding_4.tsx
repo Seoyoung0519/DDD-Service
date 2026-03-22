@@ -1,16 +1,22 @@
+import {
+  submitCommuteProfile,
+  type CommuteDay,
+} from '@/src/services/onboarding/onboardingService';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -70,6 +76,16 @@ type DayOfWeek = '월' | '화' | '수' | '목' | '금' | '토' | '일';
 
 const DAYS: DayOfWeek[] = ['월', '화', '수', '목', '금', '토', '일'];
 
+const KO_DAY_TO_API: Record<DayOfWeek, CommuteDay> = {
+  월: 'MON',
+  화: 'TUE',
+  수: 'WED',
+  목: 'THU',
+  금: 'FRI',
+  토: 'SAT',
+  일: 'SUN',
+};
+
 // 시간/분 옵션 생성
 const generateTimeOptions = (max: number) => {
   return Array.from({ length: max }, (_, i) => i);
@@ -96,6 +112,7 @@ export default function Onboarding_4() {
   const [showCommuteStartMinutes, setShowCommuteStartMinutes] = useState(false);
   const [showCommuteEndHours, setShowCommuteEndHours] = useState(false);
   const [showCommuteEndMinutes, setShowCommuteEndMinutes] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const toggleDay = (day: DayOfWeek) => {
     setSelectedDays((prev) =>
@@ -107,8 +124,8 @@ export default function Onboarding_4() {
     router.back();
   };
 
-  const handleNext = () => {
-    // 검증
+  const handleNext = async () => {
+    if (submitting) return;
     if (!departure.trim()) {
       alert('출발지를 입력해주세요.');
       return;
@@ -121,20 +138,33 @@ export default function Onboarding_4() {
       alert('요일을 1개 이상 선택해주세요.');
       return;
     }
-    // 다음 단계로 이동
-    console.log('Commute profile data:', {
-      departure,
-      arrival,
-      durationHours,
-      durationMinutes,
-      selectedDays,
-      commuteStartHours,
-      commuteStartMinutes,
-      commuteEndHours,
-      commuteEndMinutes,
-    });
-    // Onboarding_5로 이동
-    router.push('/Onboarding_5');
+
+    const origin = departure.trim();
+    const dest = arrival.trim();
+
+    setSubmitting(true);
+    try {
+      await submitCommuteProfile({
+        name: `${origin} → ${dest}`,
+        originName: origin,
+        destinationName: dest,
+        commuteHour: durationHours,
+        commuteMinute: durationMinutes,
+        commuteDays: selectedDays.map((d) => KO_DAY_TO_API[d]),
+        departHour: commuteStartHours,
+        departMinute: commuteStartMinutes,
+        returnHour: commuteEndHours,
+        returnMinute: commuteEndMinutes,
+      });
+      router.push('/Onboarding_5');
+    } catch (e) {
+      Alert.alert(
+        '오류',
+        e instanceof Error ? e.message : '통근 프로필 저장에 실패했습니다. 다시 시도해주세요.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const hoursOptions = generateTimeOptions(24);
@@ -464,10 +494,15 @@ export default function Onboarding_4() {
             <Text style={styles.previousButtonText}>이전</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.nextButton}
+            style={[styles.nextButton, submitting && { opacity: 0.85 }]}
             onPress={handleNext}
+            disabled={submitting}
             activeOpacity={0.6}>
-            <Text style={styles.nextButtonText}>다음</Text>
+            {submitting ? (
+              <ActivityIndicator color={COLORS.BUTTON_GREEN_TEXT} />
+            ) : (
+              <Text style={styles.nextButtonText}>다음</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>

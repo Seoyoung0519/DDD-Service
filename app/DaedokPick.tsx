@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   FlatList,
   Image,
-  ImageBackground,
   Platform,
   ScrollView,
   StyleSheet,
@@ -17,37 +18,47 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import {
+  fetchBookPickVideos,
+  type BookPickVideoItem
+} from '../src/api/bookPick';
+import { fetchRankingBooks } from '../src/api/ranking';
+import { hydrateBookForDetailViaSearch } from '../src/api/search';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
 const BELL_ICON = require('../assets/images/drawer/bell.png');
 
-// 이벤트 배너 이미지 배열 (나중에 여러 이미지 추가 가능)
-const EVENT_BANNERS = [
-  require('../assets/images/daedokPick/이벤트.png'),
-  // TODO: 추가 이벤트 배너 이미지
-];
-
-// 이벤트 배너 데이터
-interface EventBannerData {
+/** 상단 홍보 배너 — 이미지 + 캡션 + 링크 */
+type PromoBannerItem = {
   id: string;
-  image: any;
-  subtitle: string;
-  title: string;
-  description: string;
-}
+  image: number;
+  caption: string;
+  url: string;
+};
 
-const eventBannersData: EventBannerData[] = [
+const PROMO_BANNERS: PromoBannerItem[] = [
   {
-    id: '1',
-    image: EVENT_BANNERS[0],
-    subtitle: '주말엔 글쓰고',
-    title: '100만 원 받기!',
-    description: '9월 창작 지원 프로젝트 "이달의 밀크"',
+    id: 'sibf-2026',
+    image: require('../assets/images/daedokPick/banner/서울국제도서전_배너.png'),
+    caption: '2026 국제도서전\n놓치지말기',
+    url: 'https://sibf.kr/page/11',
   },
-  // TODO: 추가 이벤트 배너 데이터
+  {
+    id: 'literature-forum-2026',
+    image: require('../assets/images/daedokPick/banner/2026 한국문학 비평포럼_배너.png'),
+    caption: '2026 한국문학 비평포럼이 열린대!',
+    url: 'https://www.readinggroup.or.kr/board/culture_view.php?m=read&b=B_1_6&bn=1454',
+  },
 ];
+
+const BANNER_AUTO_MS = 4000;
+const BANNER_SIDE_MARGIN = 17;
+const BANNER_WIDTH = SCREEN_WIDTH - BANNER_SIDE_MARGIN * 2;
+/** 긴 캡션 줄바꿈 시 잘리지 않도록 여유 높이 */
+const BANNER_HEIGHT = 300;
 
 // 하단 네비게이션 아이콘
 const TODAY_ICON = require('../assets/images/drawer/bus.png');
@@ -310,74 +321,147 @@ const categories: Category[] = [
   },
 ];
 
-// 이벤트 배너 컴포넌트
-function EventBanner({ onPress }: { onPress: () => void }) {
+async function openBannerUrl(url: string) {
+  try {
+    await Linking.openURL(url);
+  } catch (e) {
+    console.error('[EventBanner] open url failed:', e);
+  }
+}
+
+// 이벤트 배너 — 가로 슬라이드 + 4초 자동 / 일시정지 토글
+function EventBanner() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const listRef = useRef<FlatList<PromoBannerItem>>(null);
+  const bannerCount = PROMO_BANNERS.length;
 
-  // 자동 슬라이드 (3초마다)
   useEffect(() => {
-    if (!isPaused && eventBannersData.length > 1) {
-      intervalRef.current = setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % eventBannersData.length);
-      }, 3000);
-    }
+    if (isPaused || bannerCount <= 1) return;
+    const id = setInterval(() => {
+      setCurrentIndex((prev) => {
+        const next = (prev + 1) % bannerCount;
+        listRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, BANNER_AUTO_MS);
+    return () => clearInterval(id);
+  }, [isPaused, bannerCount]);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isPaused]);
-
-  const handlePause = () => {
-    setIsPaused(!isPaused);
+  const togglePause = () => {
+    setIsPaused((p) => !p);
   };
 
-  const currentBanner = eventBannersData[currentIndex] || eventBannersData[0];
+  const onScrollEnd = (e: { nativeEvent: { contentOffset: { x: number } } }) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / BANNER_WIDTH);
+    if (idx >= 0 && idx < bannerCount) setCurrentIndex(idx);
+  };
+
+  const currentBanner = PROMO_BANNERS[currentIndex] ?? PROMO_BANNERS[0];
 
   return (
-    <TouchableOpacity
-      style={styles.eventBanner}
-      onPress={onPress}
-      activeOpacity={0.9}>
-      <ImageBackground
-        source={currentBanner.image}
-        style={styles.eventBannerImage}
-        imageStyle={styles.eventBannerImageStyle}
-        resizeMode="cover">
-        <View style={styles.eventBannerGradient}>
-          <View style={styles.eventBannerContent}>
-            <Text style={styles.eventBannerSubtitle}>{currentBanner.subtitle}</Text>
-            <Text style={styles.eventBannerTitle}>{currentBanner.title}</Text>
-            <Text style={styles.eventBannerDescription}>
-              {currentBanner.description}
+    <View style={styles.eventBanner}>
+      <FlatList
+        ref={listRef}
+        data={PROMO_BANNERS}
+        keyExtractor={(_, index) => `banner-${index}`}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        nestedScrollEnabled
+        style={styles.eventBannerList}
+        onMomentumScrollEnd={onScrollEnd}
+        getItemLayout={(_, index) => ({
+          length: BANNER_WIDTH,
+          offset: BANNER_WIDTH * index,
+          index,
+        })}
+        onScrollToIndexFailed={(info) => {
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({ index: info.index, animated: true });
+          }, 120);
+        }}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.eventBannerSlide}
+            activeOpacity={0.92}
+            onPress={() => openBannerUrl(item.url)}>
+            <ExpoImage source={item.image} style={styles.eventBannerImage} contentFit="cover" />
+          </TouchableOpacity>
+        )}
+      />
+
+      <View style={styles.eventBannerControlsOverlay} pointerEvents="box-none">
+        <View style={styles.eventBannerControls}>
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={togglePause}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel={isPaused ? '배너 자동 넘김 재생' : '배너 자동 넘김 일시정지'}
+            accessibilityRole="button">
+            <Ionicons name={isPaused ? 'play' : 'pause'} size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.slideIndicator}>
+            <Text style={styles.slideIndicatorText}>
+              {currentIndex + 1}/{bannerCount}
             </Text>
           </View>
-          <View style={styles.eventBannerControls}>
-            <TouchableOpacity style={styles.playButton} onPress={handlePause}>
-              <Ionicons
-                name={isPaused ? 'play' : 'pause'}
-                size={16}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-            <View style={styles.slideIndicator}>
-              <Text style={styles.slideIndicatorText}>
-                {currentIndex + 1}/{eventBannersData.length}+
-              </Text>
-            </View>
-          </View>
         </View>
-      </ImageBackground>
-    </TouchableOpacity>
+      </View>
+
+      {/* 회색 하단바와 겹치되, 글자는 더 앞 레이어(zIndex)에 표시 */}
+      <View style={styles.bannerCaptionLayer} pointerEvents="box-none">
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={() => openBannerUrl(currentBanner.url)}
+          style={styles.bannerCaptionTouch}>
+          <Text style={styles.bannerCaption}>{currentBanner.caption}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 // 랭킹 섹션 컴포넌트
 function RankingSection() {
   const router = useRouter();
+  const [rankingBooks, setRankingBooks] = useState<RankingBook[]>(rankedBooks);
+  const [isLoading, setIsLoading] = useState(false);
+  const [openingBookId, setOpeningBookId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        setIsLoading(true);
+
+        const rankings = await fetchRankingBooks();
+        const mapped: RankingBook[] = rankings.map((item) => ({
+          id: String(item.bookId),
+          rank: item.rank,
+          title: item.title,
+          author: item.authors,
+          description: '',
+          cover: { uri: item.coverUrl },
+        }));
+
+        if (!cancelled) setRankingBooks(mapped);
+      } catch (e) {
+        // 실패해도 UI는 더미(초기값)로 보여주기
+        console.error('[DaedokPick][RankingSection] fetchRankingBooks failed:', e);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <View style={styles.rankingSection}>
@@ -386,32 +470,59 @@ function RankingSection() {
           <View style={styles.sectionLabelRow}>
             <Text style={styles.sectionLabelGreen}>대독</Text>
             <Text style={styles.sectionLabelBlack}>랭킹</Text>
-            <Text style={styles.dateLabel}>2025.09.17기준</Text>
+            <Text style={styles.dateLabel}>알라딘 기준</Text>
           </View>
           <Text style={styles.rankingDescription}>
             온라인 서점 50위 내 베스트셀러를 대독단에서 조회해보고 대독단과 함께 독서해요.
           </Text>
         </View>
-        <TouchableOpacity onPress={() => {}}>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.SUBTITLE} />
-        </TouchableOpacity>
       </View>
 
       <View style={styles.rankingList}>
-        {rankedBooks.map((book) => (
-          <TouchableOpacity key={book.id} style={styles.rankingItem} activeOpacity={0.7}>
-            <Text style={styles.rankingNumber}>{book.rank}</Text>
-            <ExpoImage source={book.cover} style={styles.rankingBookCover} contentFit="cover" />
-            <View style={styles.rankingBookInfo}>
-              <Text style={styles.rankingBookTitle} numberOfLines={2}>
-                {book.title}
-              </Text>
-              <Text style={styles.rankingBookAuthor} numberOfLines={1}>
-                {book.author}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {isLoading ? (
+          <Text style={{ color: COLORS.SUBTITLE, fontSize: 12, fontFamily: FONTS.REGULAR }}>
+            로딩 중...
+          </Text>
+        ) : (
+          rankingBooks.map((book) => (
+            <TouchableOpacity
+              key={book.id}
+              style={styles.rankingItem}
+              activeOpacity={0.7}
+              disabled={openingBookId === book.id}
+              onPress={async () => {
+                if (openingBookId) return;
+                try {
+                  setOpeningBookId(book.id);
+                  // 백엔드: 상세 전에 /api/search/books 로 로컬 DB 적재 필요
+                  const aladinId = await hydrateBookForDetailViaSearch(book.id, book.title, book.author);
+                  router.push({
+                    pathname: '/BookDetailScreen',
+                    params: { bookId: aladinId, skipRecentBook: 'true' },
+                  });
+                } catch (e: any) {
+                  console.error('[DaedokPick][RankingSection] open detail failed:', e);
+                  Alert.alert(
+                    '도서 정보',
+                    e?.message ?? '상세 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
+                  );
+                } finally {
+                  setOpeningBookId(null);
+                }
+              }}>
+              <Text style={styles.rankingNumber}>{book.rank}</Text>
+              <ExpoImage source={book.cover} style={styles.rankingBookCover} contentFit="cover" />
+              <View style={styles.rankingBookInfo}>
+                <Text style={styles.rankingBookTitle} numberOfLines={2}>
+                  {book.title}
+                </Text>
+                <Text style={styles.rankingBookAuthor} numberOfLines={1}>
+                  {book.author}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
       </View>
     </View>
   );
@@ -419,6 +530,126 @@ function RankingSection() {
 
 // Pick 영상 섹션 컴포넌트
 function PickVideoSection() {
+  const router = useRouter();
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [videos, setVideos] = useState<BookPickVideoItem[]>([]);
+
+  // 현재 센터 인덱스(0..videos.length-1)
+  const [centerIndex, setCenterIndex] = useState(0);
+
+  const carouselLen = videos.length;
+
+  const shuffleArray = <T,>(arr: T[]) => {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  const openVideoUrl = async (url: string) => {
+    if (!url) return;
+    try {
+      await Linking.openURL(url);
+    } catch (e) {
+      console.error('[BookPick] open url failed:', e);
+    }
+  };
+
+  const goPrev = () => {
+    if (carouselLen <= 1) return;
+    setCenterIndex((i) => (i - 1 + carouselLen) % carouselLen);
+  };
+
+  const goNext = () => {
+    if (carouselLen <= 1) return;
+    setCenterIndex((i) => (i + 1) % carouselLen);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const sections = await fetchBookPickVideos();
+        const validSections = (sections || []).filter((s) => (s.items || []).length > 0);
+        if (validSections.length === 0) {
+          throw new Error('북PICK 영상 섹션이 없습니다.');
+        }
+
+        // 요청사항: 먼저 playlistId/title로 섹션(이동진/민음)을 구분
+        // 요청사항: 섹션 구분은 playlistId로 확정
+        const movedjinPlaylistId =
+          validSections.find((s) => /이동진/.test(s.title))?.playlistId ?? validSections[0]?.playlistId;
+        const nonMovedjinSections = movedjinPlaylistId
+          ? validSections.filter((s) => s.playlistId !== movedjinPlaylistId)
+          : validSections;
+
+        // 이동진을 제외한 나머지를 민음사 소스로 취급
+        const pickedMinumsaSource = nonMovedjinSections;
+
+        const movedjinItems = validSections.find((s) => s.playlistId === movedjinPlaylistId)?.items ?? [];
+        const minumsaItems = pickedMinumsaSource.flatMap((s) => s.items ?? []);
+
+        const pickedMovedjin = shuffleArray(movedjinItems).slice(0, 2);
+        const pickedMinumsa = shuffleArray(minumsaItems).slice(0, 2);
+
+        let pickedVideos = [...pickedMovedjin, ...pickedMinumsa];
+
+        // 4개가 안 나오면 전체 아이템에서 보강
+        if (pickedVideos.length < 4) {
+          const allItems = validSections.flatMap((s) => s.items ?? []);
+          const extra = shuffleArray(allItems).slice(0, 4 - pickedVideos.length);
+          pickedVideos = [...pickedVideos, ...extra];
+        }
+
+        pickedVideos = shuffleArray(pickedVideos).slice(0, 4);
+
+        if (!cancelled) {
+          setVideos(pickedVideos);
+          setCenterIndex(0);
+        }
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || '북PICK 로드 실패');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    if (carouselLen <= 1) return;
+
+    const id = setInterval(() => {
+      setCenterIndex((i) => (i + 1) % carouselLen);
+    }, 5000);
+
+    return () => clearInterval(id);
+  }, [carouselLen, loading]);
+
+  const prevIndex = carouselLen > 0 ? (centerIndex - 1 + carouselLen) % carouselLen : 0;
+  const centerVideo = carouselLen > 0 ? videos[centerIndex] : null;
+  const nextIndex = carouselLen > 0 ? (centerIndex + 1) % carouselLen : 0;
+  const prevVideo = carouselLen > 0 ? videos[prevIndex] : null;
+  const nextVideo = carouselLen > 0 ? videos[nextIndex] : null;
+
+  const handlePressMore = () => {
+    router.push({ pathname: '/BookPick' });
+  };
+
   return (
     <View style={styles.videoSection}>
       <View style={styles.sectionHeader}>
@@ -432,61 +663,110 @@ function PickVideoSection() {
             요즘 읽을 책이 없다고요? 출판사와 연예인들이 직접 추천하는 책들은 어떠세요?
           </Text>
         </View>
-        <TouchableOpacity onPress={() => {}}>
+        <TouchableOpacity onPress={handlePressMore} activeOpacity={0.8}>
           <Ionicons name="chevron-forward" size={20} color={COLORS.SUBTITLE} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.videoCarousel}>
-        {/* 왼쪽 이미지 */}
-        <TouchableOpacity style={styles.videoCarouselSide} activeOpacity={0.7}>
-          <ExpoImage
-            source={require('../assets/images/daedokPick/daedokpick_2.png')}
-            style={styles.videoCarouselSideImage}
-            contentFit="cover"
-          />
-          <View style={styles.videoCarouselArrowLeft}>
-            <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
+        {/* 왼쪽 카드 */}
+        {prevVideo ? (
+          <TouchableOpacity
+            style={styles.videoCarouselSide}
+            activeOpacity={0.7}
+            onPress={() => openVideoUrl(prevVideo.externalUrl)}>
+            <ExpoImage
+              source={{ uri: prevVideo.thumbnailUrl }}
+              style={styles.videoCarouselSideImage}
+              contentFit="cover"
+            />
 
-        {/* 가운데 메인 이미지 */}
-        <TouchableOpacity style={styles.videoCarouselMain} activeOpacity={0.9}>
-          <ExpoImage
-            source={require('../assets/images/daedokPick/bookpick_1.png')}
-            style={styles.videoCarouselMainImage}
-            contentFit="cover"
-          />
-          <View style={styles.videoPlayOverlay}>
-            <View style={styles.videoPlayButton}>
-              <Ionicons name="play" size={24} color="#FFFFFF" />
+            <View style={styles.videoCarouselArrowLeft} pointerEvents="box-none">
+              <TouchableOpacity
+                style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+                activeOpacity={0.8}
+                onPress={goPrev}>
+                <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
             </View>
-          </View>
-          <View style={styles.videoDuration}>
-            <Text style={styles.videoDurationText}>37:19</Text>
-          </View>
-        </TouchableOpacity>
 
-        {/* 오른쪽 이미지 */}
-        <TouchableOpacity style={styles.videoCarouselSide} activeOpacity={0.7}>
-          <ExpoImage
-            source={require('../assets/images/daedokPick/daedokpick_3.png')}
-            style={styles.videoCarouselSideImage}
-            contentFit="cover"
-          />
-          <View style={styles.videoCarouselArrowRight}>
-            <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
-          </View>
-        </TouchableOpacity>
+            <View style={styles.videoCardMetaOverlay}>
+              <Text style={styles.videoCardMetaTitle} numberOfLines={1}>
+                {prevVideo.title}
+              </Text>
+              <Text style={styles.videoCardMetaSub} numberOfLines={1}>
+                {prevVideo.channelName}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
+
+        {/* 가운데 메인 카드 */}
+        {centerVideo ? (
+          <TouchableOpacity
+            style={styles.videoCarouselMain}
+            activeOpacity={0.9}
+            onPress={() => openVideoUrl(centerVideo.externalUrl)}>
+            <ExpoImage
+              source={{ uri: centerVideo.thumbnailUrl }}
+              style={styles.videoCarouselMainImage}
+              contentFit="cover"
+            />
+            <View style={styles.videoPlayOverlay}>
+              <View style={styles.videoPlayButton}>
+                <Ionicons name="play" size={24} color="#FFFFFF" />
+              </View>
+            </View>
+          </TouchableOpacity>
+        ) : null}
+
+        {/* 오른쪽 카드 */}
+        {nextVideo ? (
+          <TouchableOpacity
+            style={styles.videoCarouselSide}
+            activeOpacity={0.7}
+            onPress={() => openVideoUrl(nextVideo.externalUrl)}>
+            <ExpoImage
+              source={{ uri: nextVideo.thumbnailUrl }}
+              style={styles.videoCarouselSideImage}
+              contentFit="cover"
+            />
+            <View style={styles.videoCarouselArrowRight} pointerEvents="box-none">
+              <TouchableOpacity
+                style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+                activeOpacity={0.8}
+                onPress={goNext}>
+                <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.videoCardMetaOverlay}>
+              <Text style={styles.videoCardMetaTitle} numberOfLines={1}>
+                {nextVideo.title}
+              </Text>
+              <Text style={styles.videoCardMetaSub} numberOfLines={1}>
+                {nextVideo.channelName}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={styles.videoInfo}>
-        <Text style={styles.videoTitle}>
-          독서 모임하기 좋은 드라마&영화의 원작 소설 BEST4
-        </Text>
-        <Text style={styles.videoDescription}>
-          '이 드라마 보셨어요?' 말하며 꺼내기 좋은 그 책!!
-        </Text>
+        {centerVideo ? (
+          <>
+            <Text style={styles.videoTitle} numberOfLines={2} ellipsizeMode="tail">
+              {centerVideo.title}
+            </Text>
+            <Text style={styles.videoDescription}>
+              {centerVideo.channelName}
+            </Text>
+          </>
+        ) : loading ? (
+          <Text style={styles.videoDescription}>로딩 중...</Text>
+        ) : error ? (
+          <Text style={styles.videoDescription}>{error}</Text>
+        ) : null}
       </View>
     </View>
   );
@@ -933,10 +1213,6 @@ export default function DaedokPickScreen() {
   const [activeTab, setActiveTab] = useState('대독PICK');
   const [activeNav, setActiveNav] = useState('투데이');
 
-  const handleEventBanner = () => {
-    console.log('이벤트 배너 클릭');
-  };
-
   const handleCategory = (categoryId: string) => {
     console.log('카테고리 클릭:', categoryId);
   };
@@ -1011,9 +1287,10 @@ export default function DaedokPickScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         decelerationRate="normal"
-        scrollEventThrottle={16}>
+        scrollEventThrottle={16}
+        nestedScrollEnabled>
         {/* 이벤트 배너 */}
-        <EventBanner onPress={handleEventBanner} />
+        <EventBanner />
 
         {/* 대독 랭킹 섹션 */}
         <RankingSection />
@@ -1098,7 +1375,10 @@ export default function DaedokPickScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveNav('내서재')}>
+          onPress={() => {
+            setActiveNav('내서재');
+            router.push('/my-library');
+          }}>
           <Image
             source={LIBRARY_ICON}
             style={[
@@ -1226,55 +1506,79 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom:5,
   },
-  // 이벤트 배너 스타일
+  // 이벤트 배너 스타일 (가로 슬라이드)
   eventBanner: {
-    marginHorizontal: 17,
+    marginHorizontal: BANNER_SIDE_MARGIN,
     marginTop: 20,
     marginBottom: 50,
     borderRadius: 18,
     overflow: 'hidden',
-    height: 260,
+    height: BANNER_HEIGHT,
+    position: 'relative',
+  },
+  eventBannerList: {
+    width: BANNER_WIDTH,
+    height: BANNER_HEIGHT,
+    zIndex: 0,
+  },
+  eventBannerSlide: {
+    width: BANNER_WIDTH,
+    height: BANNER_HEIGHT,
   },
   eventBannerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  eventBannerImageStyle: {
+    width: BANNER_WIDTH,
+    height: BANNER_HEIGHT,
     borderRadius: 18,
   },
-  eventBannerGradient: {
-    flex: 1,
+  /** 하단 회색 바보다 위 레이어 — 글자가 겹쳐 보이도록 */
+  bannerCaptionLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingLeft: 14,
+    paddingRight: 100,
+    /** 하단바를 위로 늘린 만큼 캡션 기준도 맞춤 */
+    paddingBottom: 60,
     justifyContent: 'flex-end',
-    padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 3,
+    elevation: 6,
   },
-  eventBannerContent: {
-    marginBottom: 12,
+  bannerCaptionTouch: {
+    alignSelf: 'stretch',
+    width: '100%',
   },
-  eventBannerSubtitle: {
-    fontSize: 12,
-    fontFamily: FONTS.REGULAR,
+  bannerCaption: {
     color: '#FFFFFF',
-    marginBottom: 4,
-    opacity: 0.9,
-  },
-  eventBannerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: FONTS.BOLD,
     fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 6,
+    lineHeight: 26,
+    flexShrink: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.55)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
   },
-  eventBannerDescription: {
-    fontSize: 12,
-    fontFamily: FONTS.REGULAR,
-    color: '#FFFFFF',
-    opacity: 0.9,
+  eventBannerControlsOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    paddingTop: 60,
+    minHeight: 103,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    zIndex: 1,
+    elevation: 2,
   },
   eventBannerControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 12,
   },
   playButton: {
     width: 36,
@@ -1346,7 +1650,7 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.REGULAR,
     color: COLORS.SUBTITLE,
     marginTop: 4,
@@ -1383,7 +1687,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   rankingBookTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: FONTS.BOLD,
     fontWeight: '700',
     color: COLORS.TEXT,
@@ -1498,22 +1802,47 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
     color: '#FFFFFF',
   },
+  // 사이드 카드 하단 메타 정보 오버레이
+  videoCardMetaOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+  },
+  videoCardMetaTitle: {
+    fontSize: 10,
+    fontFamily: FONTS.BOLD,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  videoCardMetaSub: {
+    fontSize: 9,
+    fontFamily: FONTS.REGULAR,
+    color: 'rgba(255, 255, 255, 0.92)',
+  },
   videoInfo: {
     marginTop: 16,
+    alignItems: 'center',
   },
   videoTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: FONTS.BOLD,
     fontWeight: '700',
     color: COLORS.TEXT,
     marginBottom: 6,
     lineHeight: 22,
+    textAlign: 'center',
   },
   videoDescription: {
     fontSize: 13,
     fontFamily: FONTS.REGULAR,
     color: COLORS.SUBTITLE,
     lineHeight: 14,
+    textAlign: 'center',
   },
   // 독서 체력 섹션 스타일
   readingStaminaSection: {

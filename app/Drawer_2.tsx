@@ -369,7 +369,10 @@ export default function ShelfGemScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveNav('내서재')}>
+          onPress={() => {
+            setActiveNav('내서재');
+            router.push('/my-library');
+          }}>
           <Image
             source={LIBRARY_ICON}
             style={[
