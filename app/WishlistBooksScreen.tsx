@@ -3,9 +3,10 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   InteractionManager,
@@ -15,13 +16,17 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { fetchLibraryWishlist, type WishBookOut } from '@/src/api/library';
+import {
+  fetchLibraryWishlist,
+  removeFromLibraryWishlist,
+  wishlistBookDetailRouteId,
+  type WishBookOut,
+} from '@/src/api/library';
 
 /** 모달·메타 한 줄 (저자 · 찜한 날짜) */
 function wishlistMetaFromApi(b: WishBookOut): string {
@@ -63,8 +68,6 @@ const COLORS = {
   SUBTITLE: '#7A7A7A',
   BACKGROUND: '#FFFFFF',
   BORDER: '#EAEAEA',
-  SEARCH_BG: '#F3F4F6',
-  PLACEHOLDER: '#B0B0B0',
   MODAL_OVERLAY: 'rgba(0, 0, 0, 0.45)',
   BTN_CANCEL_BG: '#CCCCCC',
   BTN_CANCEL_TEXT: '#222222',
@@ -91,8 +94,8 @@ export default function WishlistBooksScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [modalQuery, setModalQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [removeInProgress, setRemoveInProgress] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -122,32 +125,7 @@ export default function WishlistBooksScreen() {
     }, [load]),
   );
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = wishlistItems;
-    if (!q) return list;
-    return list.filter((b) => {
-      const title = (b.bookTitle ?? '').toLowerCase();
-      const author = (b.bookAuthor ?? '').toLowerCase();
-      const meta = wishlistMetaFromApi(b).toLowerCase();
-      return title.includes(q) || author.includes(q) || meta.includes(q);
-    });
-  }, [query, wishlistItems]);
-
-  const modalFiltered = useMemo(() => {
-    const q = modalQuery.trim().toLowerCase();
-    const list = wishlistItems;
-    if (!q) return list;
-    return list.filter((b) => {
-      const title = (b.bookTitle ?? '').toLowerCase();
-      const author = (b.bookAuthor ?? '').toLowerCase();
-      const meta = wishlistMetaFromApi(b).toLowerCase();
-      return title.includes(q) || author.includes(q) || meta.includes(q);
-    });
-  }, [modalQuery, wishlistItems]);
-
   const openEditModal = useCallback(() => {
-    setModalQuery('');
     setSelectedIds(new Set());
     setEditModalVisible(true);
   }, []);
@@ -155,7 +133,6 @@ export default function WishlistBooksScreen() {
   const closeEditModal = useCallback(() => {
     setEditModalVisible(false);
     setSelectedIds(new Set());
-    setModalQuery('');
   }, []);
 
   const toggleSelect = useCallback((id: string) => {
@@ -167,12 +144,27 @@ export default function WishlistBooksScreen() {
     });
   }, []);
 
-  /** 로컬 목록만 갱신 (서버 DELETE API 없음 — 새로고침 시 복구될 수 있음) */
-  const handleRemoveSelected = useCallback(() => {
-    if (selectedIds.size === 0) return;
-    setWishlistItems((prev) => prev.filter((b) => !selectedIds.has(b.id)));
-    closeEditModal();
-  }, [selectedIds, closeEditModal]);
+  const handleRemoveSelected = useCallback(async () => {
+    if (selectedIds.size === 0 || removeInProgress) return;
+    const toRemove = wishlistItems.filter((b) => selectedIds.has(b.id));
+    const bookIds = [...new Set(toRemove.map((b) => b.bookId))];
+
+    setRemoveInProgress(true);
+    try {
+      for (const bid of bookIds) {
+        const row = toRemove.find((b) => b.bookId === bid);
+        await removeFromLibraryWishlist(bid, { aladinItemId: row?.aladinItemId });
+      }
+      setWishlistItems((prev) => prev.filter((b) => !selectedIds.has(b.id)));
+      closeEditModal();
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error ? e.message : '찜 목록에서 제거하지 못했습니다. 다시 시도해 주세요.';
+      Alert.alert('제거 실패', msg);
+    } finally {
+      setRemoveInProgress(false);
+    }
+  }, [selectedIds, wishlistItems, removeInProgress, closeEditModal]);
 
   const hasDeleteSelection = selectedIds.size > 0;
 
@@ -227,7 +219,8 @@ export default function WishlistBooksScreen() {
                       router.push({
                         pathname: '/BookDetailScreen',
                         params: {
-                          bookId: item.bookId,
+                          bookId: wishlistBookDetailRouteId(item),
+                          aladinItemId: item.aladinItemId?.trim() ?? '',
                           skipRecentBook: 'true',
                           bookTitle: item.bookTitle ?? '',
                           bookAuthor: item.bookAuthor ?? '',
@@ -295,34 +288,17 @@ export default function WishlistBooksScreen() {
               찜한 도서에서 제거할 도서를 선택하세요
             </Text>
 
-            <View style={styles.modalSearchWrap}>
-              <Ionicons
-                name="search"
-                size={20}
-                color={COLORS.PLACEHOLDER}
-                style={styles.modalSearchIcon}
-              />
-              <TextInput
-                style={styles.modalSearchInput}
-                placeholder="검색어를 입력하세요"
-                placeholderTextColor={COLORS.PLACEHOLDER}
-                value={modalQuery}
-                onChangeText={setModalQuery}
-                returnKeyType="search"
-              />
-            </View>
-
             <ScrollView
               style={styles.modalListScroll}
               contentContainerStyle={styles.modalListContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
-              {modalFiltered.length === 0 ? (
-                <Text style={styles.modalEmpty}>검색 결과가 없습니다.</Text>
+              {wishlistItems.length === 0 ? (
+                <Text style={styles.modalEmpty}>찜한 도서가 없습니다.</Text>
               ) : (
-                modalFiltered.map((item, index) => {
+                wishlistItems.map((item, index) => {
                   const selected = selectedIds.has(item.id);
-                  const isLast = index === modalFiltered.length - 1;
+                  const isLast = index === wishlistItems.length - 1;
                   return (
                     <TouchableOpacity
                       key={item.id}
@@ -365,25 +341,30 @@ export default function WishlistBooksScreen() {
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.modalBtnCancel}
-                activeOpacity={0.88}
+                activeOpacity={removeInProgress ? 1 : 0.88}
+                disabled={removeInProgress}
                 onPress={closeEditModal}>
                 <Text style={styles.modalBtnCancelText}>취소</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
                   styles.modalBtnDelete,
-                  !hasDeleteSelection && styles.modalBtnDeleteDisabled,
+                  (!hasDeleteSelection || removeInProgress) && styles.modalBtnDeleteDisabled,
                 ]}
-                activeOpacity={hasDeleteSelection ? 0.88 : 1}
-                disabled={!hasDeleteSelection}
-                onPress={handleRemoveSelected}>
-                <Text
-                  style={[
-                    styles.modalBtnDeleteText,
-                    !hasDeleteSelection && styles.modalBtnDeleteTextDisabled,
-                  ]}>
-                  삭제
-                </Text>
+                activeOpacity={hasDeleteSelection && !removeInProgress ? 0.88 : 1}
+                disabled={!hasDeleteSelection || removeInProgress}
+                onPress={() => void handleRemoveSelected()}>
+                {removeInProgress ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text
+                    style={[
+                      styles.modalBtnDeleteText,
+                      !hasDeleteSelection && styles.modalBtnDeleteTextDisabled,
+                    ]}>
+                    삭제
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </Pressable>
@@ -583,25 +564,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
     color: COLORS.MODAL_SUBTITLE,
     marginBottom: 18,
-  },
-  modalSearchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.SEARCH_BG,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 46,
-    marginBottom: 14,
-  },
-  modalSearchIcon: {
-    marginRight: 10,
-  },
-  modalSearchInput: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: FONTS.REGULAR,
-    color: COLORS.TEXT,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
   },
   modalListScroll: {
     maxHeight: 300,

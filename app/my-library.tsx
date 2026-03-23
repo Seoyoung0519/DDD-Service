@@ -27,6 +27,7 @@ import {
   fetchLibraryStats,
   fetchLibrarySummary,
   fetchLibraryWishlist,
+  wishlistBookDetailRouteId,
   indexCalendarDaysByDayOfMonth,
   type CalendarDayOut,
   type CompletedBookOut,
@@ -309,7 +310,8 @@ export default function MyLibraryScreen() {
                     router.push({
                       pathname: '/BookDetailScreen',
                       params: {
-                        bookId: b.bookId,
+                        bookId: wishlistBookDetailRouteId(b),
+                        aladinItemId: b.aladinItemId?.trim() ?? '',
                         skipRecentBook: 'true',
                         bookTitle: b.bookTitle ?? '',
                         bookAuthor: b.bookAuthor ?? '',

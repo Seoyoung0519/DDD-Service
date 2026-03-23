@@ -5,6 +5,7 @@
  * - GET `/library/in-progress` — 진행 중 도서
  * - GET `/library/completed` — 완독 도서 (`CompletedBookListOut`: `{ items: CompletedBookOut[] }`)
  * - GET `/library/wishlist` — 찜한 책 (`WishBookListOut`: `{ items: WishBookOut[] }`)
+ * - DELETE `/library/wishlist` — 찜 제거 (body: `{ bookId }`, 204)
  * - GET `/library/calendar?year=&month=` — 월별 독서 캘린더 (`CalendarMonthOut`)
  * - GET `/library/stats` — 대독 통계 (`ReadingStatsOut`)
  * - POST `LIBRARY_WISHLIST_ADD_PATH` (기본 `/library/wishlist/items`) — 찜 추가
@@ -228,7 +229,13 @@ export async function fetchLibraryCompletedBooks(): Promise<CompletedBookOut[]> 
 export type WishBookOut = {
   /** user_book 등 찜 레코드 id */
   id: string;
+  /** 서재/도서 테이블의 책 id (UUID 등) */
   bookId: string;
+  /**
+   * 알라딘 ItemId — 있으면 `GET /api/books/:id`·검색 상세와 동일하게 품번으로 열 수 있음.
+   * 백엔드가 내려주지 않으면 `bookId`만 사용.
+   */
+  aladinItemId?: string | null;
   bookTitle?: string | null;
   bookThumbnailUrl?: string | null;
   bookAuthor?: string | null;
@@ -246,6 +253,10 @@ function normalizeWishBook(raw: unknown): WishBookOut | null {
   const bookId = str(o.bookId ?? o.book_id);
   if (!id || !bookId) return null;
 
+  const aladinRaw = o.aladinItemId ?? o.aladin_item_id ?? o.aladin_itemId;
+  const aladinItemId =
+    aladinRaw != null && String(aladinRaw).trim() ? String(aladinRaw).trim() : null;
+
   const titleRaw = o.bookTitle ?? o.book_title;
   const thumbRaw = o.bookThumbnailUrl ?? o.book_thumbnail_url;
   const authorRaw = o.bookAuthor ?? o.book_author;
@@ -254,11 +265,19 @@ function normalizeWishBook(raw: unknown): WishBookOut | null {
   return {
     id,
     bookId,
+    aladinItemId,
     bookTitle: titleRaw != null && String(titleRaw).length > 0 ? String(titleRaw) : null,
     bookThumbnailUrl: thumbRaw != null && String(thumbRaw).length > 0 ? String(thumbRaw) : null,
     bookAuthor: authorRaw != null && String(authorRaw).length > 0 ? String(authorRaw) : null,
     addedAt: atRaw != null && String(atRaw).length > 0 ? String(atRaw) : null,
   };
+}
+
+/** 찜 목록 → 도서 상세 라우트용 id (알라딘 품번 우선, 없으면 bookId) */
+export function wishlistBookDetailRouteId(b: WishBookOut): string {
+  const a = b.aladinItemId?.trim();
+  if (a) return a;
+  return b.bookId.trim();
 }
 
 /**
@@ -276,6 +295,37 @@ export async function fetchLibraryWishlist(): Promise<WishBookOut[]> {
   const json: unknown = await res.json().catch(() => ({}));
   const arr = extractItemsArray(json);
   return arr.map(normalizeWishBook).filter((x): x is WishBookOut => x != null);
+}
+
+/**
+ * DELETE `/library/wishlist` — 본문 `{ bookId }` (fetch는 DELETE + body 지원)
+ * 성공 시 204 No Content
+ */
+export async function removeFromLibraryWishlist(
+  bookId: string,
+  options?: { aladinItemId?: string | null },
+): Promise<void> {
+  const trimmed = bookId.trim();
+  if (!trimmed) {
+    throw new Error('도서 ID가 없습니다.');
+  }
+
+  const aladin = options?.aladinItemId?.trim();
+  const body: Record<string, string> = { bookId: trimmed };
+  if (aladin) body.aladin_item_id = aladin;
+
+  const res = await libraryAuthedFetch(WISHLIST_PATH, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (res.status === 204 || res.ok) {
+    return;
+  }
+
+  const text = await res.text().catch(() => '');
+  throw new Error(text?.trim() || `찜한 도서 제거 실패 (HTTP ${res.status})`);
 }
 
 // --- GET /library/calendar ---
@@ -326,16 +376,53 @@ function normalizeCalendarDay(raw: unknown): CalendarDayOut | null {
   };
 }
 
-function normalizeCalendarMonth(raw: unknown): CalendarMonthOut | null {
+/** GET /library/calendar 응답 — 래핑·키 이름 차이 흡수 */
+function unwrapCalendarMonthJson(raw: unknown): Record<string, unknown> | null {
   let o = asRecord(raw);
-  if (o?.data != null && typeof o.data === 'object') {
-    o = asRecord(o.data) ?? o;
+  if (!o) return null;
+
+  const peel = (obj: Record<string, unknown>): Record<string, unknown> | null => {
+    if (Array.isArray(obj.days) && obj.year != null) return obj;
+
+    for (const key of ['data', 'result', 'payload', 'body'] as const) {
+      const inner = obj[key];
+      if (inner == null || typeof inner !== 'object' || Array.isArray(inner)) continue;
+      const ir = asRecord(inner);
+      if (!ir) continue;
+      if (Array.isArray(ir.days) || (ir.year != null && ir.month != null)) return ir;
+      const cal = ir.calendar ?? ir.calendar_month ?? ir.calendarMonth;
+      if (cal != null && typeof cal === 'object' && !Array.isArray(cal)) {
+        const cr = asRecord(cal);
+        if (cr && (Array.isArray(cr.days) || cr.year != null)) return cr;
+      }
+    }
+
+    for (const key of ['calendar', 'calendar_month', 'calendarMonth'] as const) {
+      const cal = obj[key];
+      if (cal != null && typeof cal === 'object' && !Array.isArray(cal)) {
+        const cr = asRecord(cal);
+        if (cr && (Array.isArray(cr.days) || cr.year != null)) return cr;
+      }
+    }
+    return null;
+  };
+
+  for (let i = 0; i < 5; i++) {
+    const next = peel(o);
+    if (!next || next === o) break;
+    o = next;
   }
+
+  return o;
+}
+
+function normalizeCalendarMonth(raw: unknown): CalendarMonthOut | null {
+  const o = unwrapCalendarMonthJson(raw);
   if (!o) return null;
 
   const year = typeof o.year === 'number' ? o.year : Number(o.year);
   const month = typeof o.month === 'number' ? o.month : Number(o.month);
-  const daysRaw = o.days;
+  const daysRaw = o.days ?? o.calendar_days ?? o.calendarDays ?? o.items;
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Array.isArray(daysRaw)) {
     return null;
   }
@@ -353,7 +440,8 @@ function normalizeCalendarMonth(raw: unknown): CalendarMonthOut | null {
 export function indexCalendarDaysByDayOfMonth(days: CalendarDayOut[]): Record<number, CalendarDayOut> {
   const out: Record<number, CalendarDayOut> = {};
   for (const d of days) {
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d.date.trim());
+    // YYYY-MM-DD 또는 ISO(`2026-03-05T00:00:00Z`), 월·일 한 자리(`2026-3-5`)도 허용
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(d.date.trim());
     if (!m) continue;
     const dayNum = parseInt(m[3], 10);
     if (Number.isFinite(dayNum) && dayNum >= 1 && dayNum <= 31) {
@@ -363,14 +451,18 @@ export function indexCalendarDaysByDayOfMonth(days: CalendarDayOut[]): Record<nu
   return out;
 }
 
-/** 해당 일에 독서 기록(책)이 있으면 true */
+/** 해당 일에 독서 기록(책)이 있으면 true — 책 메타 없이 페이지만 있어도 세션으로 인정 */
 export function calendarDayHasReading(entry: CalendarDayOut | undefined): boolean {
   if (!entry) return false;
-  return Boolean(
+  const hasBookMeta = Boolean(
     (entry.bookId && entry.bookId.trim()) ||
       (entry.bookTitle && entry.bookTitle.trim()) ||
       (entry.bookThumbnailUrl && entry.bookThumbnailUrl.trim()),
   );
+  const hasPages =
+    (entry.readPageStart != null && Number.isFinite(Number(entry.readPageStart))) ||
+    (entry.readPageEnd != null && Number.isFinite(Number(entry.readPageEnd)));
+  return hasBookMeta || hasPages;
 }
 
 /** 월 그리드용 인덱스 맵에 읽은 책이 하루라도 있으면 true */
@@ -448,6 +540,13 @@ export async function fetchLibraryCalendar(year: number, month: number): Promise
   const json: unknown = await res.json().catch(() => ({}));
   const normalized = normalizeCalendarMonth(json);
   if (!normalized) {
+    if (__DEV__) {
+      const keys =
+        json && typeof json === 'object' && !Array.isArray(json)
+          ? Object.keys(json as object).join(', ')
+          : typeof json;
+      console.warn('[fetchLibraryCalendar] 응답 파싱 실패 — 최상위 키:', keys);
+    }
     throw new Error('독서 캘린더 응답 형식이 올바르지 않습니다.');
   }
   return normalized;

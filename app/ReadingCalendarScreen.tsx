@@ -43,6 +43,8 @@ const COLORS = {
   WEEK_HEADER_BG: '#F0F2F5',
   MODAL_OVERLAY: 'rgba(0, 0, 0, 0.5)',
   MODAL_SECTION_BG: '#F7F8FA',
+  /** 일별 상세 모달 하단 닫기 버튼 (시안: 연회 박스) */
+  MODAL_CLOSE_BTN_BG: '#D9D9D9',
 };
 
 const FONTS = {
@@ -107,6 +109,8 @@ export default function ReadingCalendarScreen() {
     let cancelled = false;
     setCalendarLoading(true);
     setCalendarError(null);
+    /** 이전 월 썸네일이 남지 않도록 즉시 비움 (달 넘기기 후 빈 월 UI) */
+    setCalendarByDay({});
     void (async () => {
       try {
         const data = await fetchLibraryCalendar(year, monthNum);
@@ -197,10 +201,7 @@ export default function ReadingCalendarScreen() {
         {!calendarLoading &&
         !calendarError &&
         !calendarIndexedHasAnyReading(calendarByDay) ? (
-          <Text style={styles.calendarEmptyText}>
-            아직 읽은 책이 없습니다.{'\n'}
-            책읽기 탭에서 독서를 시작해보세요!
-          </Text>
+          <Text style={styles.calendarEmptyText}>읽은 책이 없습니다.</Text>
         ) : null}
         <View style={styles.weekRow}>
           {WEEK_LABELS.map((w) => (
@@ -256,38 +257,40 @@ export default function ReadingCalendarScreen() {
         onRequestClose={() => setSelectedDay(null)}>
         <Pressable style={styles.dayModalOverlay} onPress={() => setSelectedDay(null)}>
           <Pressable style={styles.dayModalCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.dayModalTitle}>{modalTitle}</Text>
+            <View style={styles.dayModalBody}>
+              <Text style={styles.dayModalTitle}>{modalTitle}</Text>
 
-            <Text style={styles.dayModalSectionLabel}>읽은 책</Text>
-            <View style={styles.dayModalBookRow}>
-              {selectedEntry ? (
-                <>
-                  {selectedEntry.bookThumbnailUrl ? (
-                    <ExpoImage
-                      source={{ uri: selectedEntry.bookThumbnailUrl }}
-                      style={styles.dayModalCover}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View style={[styles.dayModalCover, styles.dayModalCoverPlaceholder]} />
-                  )}
-                  <View style={styles.dayModalBookText}>
-                    <Text style={styles.dayModalBookTitle} numberOfLines={3}>
-                      {selectedEntry.bookTitle?.trim() || '제목 없음'}
-                    </Text>
-                  </View>
-                </>
-              ) : null}
-            </View>
+              <Text style={styles.dayModalSectionLabel}>읽은 책</Text>
+              <View style={styles.dayModalBookRow}>
+                {selectedEntry ? (
+                  <>
+                    {selectedEntry.bookThumbnailUrl ? (
+                      <ExpoImage
+                        source={{ uri: selectedEntry.bookThumbnailUrl }}
+                        style={styles.dayModalCover}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={[styles.dayModalCover, styles.dayModalCoverPlaceholder]} />
+                    )}
+                    <View style={styles.dayModalBookText}>
+                      <Text style={styles.dayModalBookTitle} numberOfLines={3}>
+                        {selectedEntry.bookTitle?.trim() || '제목 없음'}
+                      </Text>
+                    </View>
+                  </>
+                ) : null}
+              </View>
 
-            <Text style={styles.dayModalSectionLabel}>읽은 쪽수</Text>
-            <View style={styles.dayModalSectionBox}>
-              <Text style={styles.dayModalSectionBody}>{pagesLine}</Text>
+              <Text style={styles.dayModalSectionLabel}>읽은 쪽수</Text>
+              <View style={styles.dayModalSectionBox}>
+                <Text style={styles.dayModalSectionBody}>{pagesLine}</Text>
+              </View>
             </View>
 
             <TouchableOpacity
               style={styles.dayModalCloseBtn}
-              activeOpacity={0.88}
+              activeOpacity={0.85}
               onPress={() => setSelectedDay(null)}>
               <Text style={styles.dayModalCloseBtnText}>닫기</Text>
             </TouchableOpacity>
@@ -507,10 +510,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 360,
     backgroundColor: COLORS.BACKGROUND,
-    borderRadius: 16,
-    paddingTop: 22,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    borderRadius: 22,
+    overflow: 'hidden',
+    padding: 0,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -522,6 +524,11 @@ const styles = StyleSheet.create({
         elevation: 8,
       },
     }),
+  },
+  dayModalBody: {
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 20,
   },
   dayModalTitle: {
     fontSize: 18,
@@ -570,7 +577,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    marginBottom: 14,
+    marginBottom: 0,
   },
   dayModalSectionBody: {
     fontSize: 15,
@@ -578,16 +585,17 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT,
   },
   dayModalCloseBtn: {
-    marginTop: 4,
-    backgroundColor: '#ECECEC',
-    borderRadius: 12,
-    paddingVertical: 14,
+    width: '100%',
+    minHeight: 64,
+    backgroundColor: COLORS.MODAL_CLOSE_BTN_BG,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 18,
   },
   dayModalCloseBtnText: {
-    fontSize: 16,
-    fontFamily: FONTS.MEDIUM,
-    fontWeight: '600',
+    fontSize: 17,
+    fontFamily: FONTS.BOLD,
+    fontWeight: '700',
     color: COLORS.TEXT,
   },
 });

@@ -137,15 +137,46 @@ export async function getBookDetailOrNotFound(
   return { ok: false, status: res.status };
 }
 
-/** 랭킹/검색 제목 비교용 정규화(공백·대소문자·부호 일부) */
-function normalizeTitleKey(s: string): string {
+/**
+ * 랭킹/검색 제목 비교용 정규화(공백·대소문자·괄호 종류·부호 일부)
+ * — `（）` vs `()` , 전각 공백 등으로 완전 일치를 놓치지 않도록 통일
+ */
+export function normalizeTitleKey(s: string): string {
   return s
     .toLowerCase()
+    .replace(/\u3000/g, ' ')
     .replace(/\s+/g, ' ')
     .replace(/[…．·・‧]/g, '')
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[（(]/g, '(')
+    .replace(/[）)]/g, ')')
     .trim();
+}
+
+/** 부제·판 구분이 괄호로 붙은 요청인지 (일반판 대신 특정 판만 허용할 때) */
+function requestTitleHasEditionParen(title: string): boolean {
+  return /[（(][^)）]{2,}[)）]/.test(title.trim());
+}
+
+/** 요청 제목과 후보 제목의 편집 거리 (작을수록 더 일치) */
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const row: number[] = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const temp = row[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + cost);
+      prev = temp;
+    }
+  }
+  return row[n];
 }
 
 /** 검색 쿼리 후보: 전체 제목 / 부제 제거 / 앞부분만 등 */
@@ -174,6 +205,37 @@ function buildRankingSearchQueries(title: string, aladinItemId: string, authors?
   return out;
 }
 
+/**
+ * 여러 검색 후보 중 **요청한 제목(rankingTitle)** 과 가장 일치하는 항목 선택.
+ * 정규화 일치 → 편집 거리(Levenshtein) 최소 → 저자 일치 → 길이 차이 최소 → 더 구체적(긴) 제목.
+ */
+function pickBestFuzzyTitleMatch(
+  fuzzy: SearchBookItem[],
+  normRank: string,
+  authorNeedle: string | undefined,
+): SearchBookItem {
+  const norm = (b: SearchBookItem) => normalizeTitleKey(b.title);
+  const exactInFuzzy = fuzzy.find((b) => norm(b) === normRank);
+  if (exactInFuzzy) return exactInFuzzy;
+
+  return [...fuzzy].sort((a, b) => {
+    const na = norm(a);
+    const nb = norm(b);
+    const da = levenshtein(na, normRank);
+    const db = levenshtein(nb, normRank);
+    if (da !== db) return da - db;
+
+    const authA = authorNeedle && a.author?.toLowerCase().includes(authorNeedle) ? 0 : 1;
+    const authB = authorNeedle && b.author?.toLowerCase().includes(authorNeedle) ? 0 : 1;
+    if (authA !== authB) return authA - authB;
+
+    const la = Math.abs(na.length - normRank.length);
+    const lb = Math.abs(nb.length - normRank.length);
+    if (la !== lb) return la - lb;
+    return nb.length - na.length;
+  })[0];
+}
+
 function pickSearchItemForRanking(
   items: SearchBookItem[],
   aladinItemId: string,
@@ -185,12 +247,18 @@ function pickSearchItemForRanking(
 
   const sameId = (a: string, b: string) => String(a).trim() === String(b).trim();
 
-  const byAladin = items.find((b) => sameId(b.aladin_item_id, aladinItemId));
-  if (byAladin) return byAladin;
-
+  /**
+   * 1) 검색 API `bookId`(내부 DB id) — 찜/내서재 등은 알라딘 id가 아닌 UUID를 넘기는 경우가 많음.
+   *    최근 검색은 aladin_item_id만 쓰므로 이 분기에 안 걸림.
+   */
   const byBookId = items.find((b) => b.bookId && sameId(b.bookId, aladinItemId));
   if (byBookId) return byBookId;
 
+  /** 2) 알라딘 품번과 동일 */
+  const byAladin = items.find((b) => sameId(b.aladin_item_id, aladinItemId));
+  if (byAladin) return byAladin;
+
+  /** 3) 요청 제목과 정규화 완전 일치(다른 판 구분) */
   const exactTitle = items.find((b) => normalizeTitleKey(b.title) === normRank);
   if (exactTitle) return exactTitle;
 
@@ -199,12 +267,24 @@ function pickSearchItemForRanking(
       const bt = normalizeTitleKey(b.title);
       return bt.includes(normRank) || normRank.includes(bt);
     });
-    if (fuzzy.length === 1) return fuzzy[0];
-    if (fuzzy.length > 1 && authorNeedle) {
-      const withAuthor = fuzzy.find((b) => b.author?.toLowerCase().includes(authorNeedle));
-      if (withAuthor) return withAuthor;
+    if (fuzzy.length === 0) return undefined;
+
+    const editionRequest = requestTitleHasEditionParen(rankingTitle);
+    if (editionRequest) {
+      const exactOnly = fuzzy.filter((b) => normalizeTitleKey(b.title) === normRank);
+      if (exactOnly.length === 1) return exactOnly[0];
+      if (exactOnly.length > 1) {
+        return pickBestFuzzyTitleMatch(exactOnly, normRank, authorNeedle);
+      }
+      /**
+       * 인덱스 제목이 찜 목록과 미세하게 다르면 exactOnly가 비어 실패했음.
+       * 동일 책으로 보이면 Levenshtein으로 가장 가까운 권 선택(일반판 대체 허용).
+       */
+      return pickBestFuzzyTitleMatch(fuzzy, normRank, authorNeedle);
     }
-    if (fuzzy.length > 0) return fuzzy[0];
+
+    if (fuzzy.length === 1) return fuzzy[0];
+    return pickBestFuzzyTitleMatch(fuzzy, normRank, authorNeedle);
   }
 
   return undefined;
@@ -245,17 +325,17 @@ export async function hydrateBookForDetailViaSearch(
           merged.push(it);
         }
       }
-      const quick = pickSearchItemForRanking(data.items ?? [], aladinItemId, title, rankingAuthors);
-      if (quick) {
-        await getBookDetail(quick.aladin_item_id, true);
-        return quick.aladin_item_id;
-      }
     } catch {
       // 개별 쿼리 실패 시 다음 후보
     }
   }
 
-  const matched = pickSearchItemForRanking(merged, aladinItemId, title, rankingAuthors);
+  /** 짧은 쿼리에서만 먼저 매칭되던 문제 방지: 전체 후보(merged)에서 한 번에 선택 */
+  let matched = pickSearchItemForRanking(merged, aladinItemId, title, rankingAuthors);
+  if (!matched && merged.length > 0) {
+    const normRank = normalizeTitleKey(title);
+    matched = pickBestFuzzyTitleMatch(merged, normRank, rankingAuthors?.split(/[,，]/)[0]?.trim().toLowerCase());
+  }
   if (!matched) {
     throw new Error('검색 결과에서 해당 도서를 찾지 못했습니다.');
   }

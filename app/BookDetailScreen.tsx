@@ -21,11 +21,13 @@ import {
   getBookDetail,
   getBookDetailOrNotFound,
   hydrateBookForDetailViaSearch,
+  normalizeTitleKey,
   type BookDetailResponse,
 } from '../src/api/search';
-import { addBookToLibraryWishlist } from '../src/api/library';
+import { addBookToWish, WishAddFailure } from '../src/api/userBooksWish';
 import { fetchFeed, type FeedItemOut } from '@/src/api/feed';
 import { fetchBookReviews, type ReviewOut } from '@/src/api/reviews';
+import { reportAppError, userFacingMessage } from '@/src/utils/userFacingError';
 
 function reviewOutToFeedLike(r: ReviewOut): FeedItemOut {
   return {
@@ -113,6 +115,8 @@ export default function BookDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     bookId?: string;
+    /** 찜 목록 등: 백엔드 `aladin_item_id` — 있으면 상세·검색 보강에 이 값 우선 */
+    aladinItemId?: string;
     book?: string;
     skipRecentBook?: string;
     /** 내 서재·완독 등에서 상세 보강(검색)용 */
@@ -145,8 +149,8 @@ export default function BookDetailScreen() {
         const feed = await fetchFeed({ bookId: book.id, limit: 50 });
         setBookReviewItems(feed.items.filter((i: FeedItemOut) => i.bookId === book.id));
       } catch (e2) {
-        const msg = e2 instanceof Error ? e2.message : '리뷰를 불러오지 못했습니다.';
-        setReviewsError(msg);
+        reportAppError(e2, { scope: 'BookDetail.reviewsFallback' });
+        setReviewsError(userFacingMessage('reviewsLoad'));
         setBookReviewItems([]);
       }
     } finally {
@@ -215,8 +219,14 @@ export default function BookDetailScreen() {
   // 도서 데이터 로드 — GET `/api/books/:id` (내 서재 bookId가 UUID일 때 404면 제목으로 검색 보강)
   useEffect(() => {
     const loadBookDetail = async () => {
-      const bookId = params.bookId;
-      if (!bookId) {
+      const rawAladin =
+        typeof params.aladinItemId === 'string' && params.aladinItemId.trim()
+          ? params.aladinItemId.trim()
+          : '';
+      const rawBookId = typeof params.bookId === 'string' ? params.bookId.trim() : '';
+      /** 알라딘 품번이 있으면 검색·상세 id로 우선 사용 (찜 API 연동) */
+      const effectiveBookId = rawAladin || rawBookId;
+      if (!effectiveBookId) {
         setLoading(false);
         return;
       }
@@ -233,24 +243,54 @@ export default function BookDetailScreen() {
         setLoading(true);
         setError(null);
 
-        const first = await getBookDetailOrNotFound(bookId, skipRecent);
+        const first = await getBookDetailOrNotFound(effectiveBookId, skipRecent);
         if (first.ok) {
-          setBook(transformBookData(first.data));
+          const initial = transformBookData(first.data);
+          /**
+           * 찜에서 `aladinItemId`로 연 경우: 이미 품번 기준 상세이므로 제목 불일치 재검색 생략
+           * (그 외: 찜·완독 등에서 넘어온 제목과 상세가 다르면 검색 보강)
+           */
+          if (titleHint.length > 0 && !rawAladin) {
+            const hintNorm = normalizeTitleKey(titleHint);
+            const loadedNorm = normalizeTitleKey(initial.title);
+            if (hintNorm !== loadedNorm) {
+              try {
+                const resolvedId = await hydrateBookForDetailViaSearch(
+                  effectiveBookId,
+                  titleHint,
+                  authorHint,
+                );
+                const response = await getBookDetail(resolvedId, skipRecent);
+                setBook(transformBookData(response.data));
+                return;
+              } catch (e) {
+                reportAppError(e, { scope: 'BookDetail.hydrateAfterTitleMismatch' });
+                setBook(null);
+                setError(userFacingMessage('bookMismatch'));
+                return;
+              }
+            }
+          }
+          setBook(initial);
           return;
         }
 
         if (first.status === 404 && titleHint.length > 0) {
-          const resolvedId = await hydrateBookForDetailViaSearch(bookId, titleHint, authorHint);
+          const resolvedId = await hydrateBookForDetailViaSearch(
+            effectiveBookId,
+            titleHint,
+            authorHint,
+          );
           const response = await getBookDetail(resolvedId, skipRecent);
           setBook(transformBookData(response.data));
           return;
         }
 
         setBook(null);
-        setError('도서 정보를 불러오는데 실패했습니다.');
+        setError(userFacingMessage('bookLoad'));
       } catch (error: unknown) {
-        console.error('[BookDetailScreen] 도서 상세 로드 실패:', error);
-        setError('도서 정보를 불러오는데 실패했습니다.');
+        reportAppError(error, { scope: 'BookDetail.loadBookDetail' });
+        setError(userFacingMessage('bookLoad'));
         setBook(null);
       } finally {
         setLoading(false);
@@ -258,7 +298,7 @@ export default function BookDetailScreen() {
     };
 
     loadBookDetail();
-  }, [params.bookId, params.skipRecentBook, params.bookTitle, params.bookAuthor]);
+  }, [params.bookId, params.aladinItemId, params.skipRecentBook, params.bookTitle, params.bookAuthor]);
 
   // 뒤로가기 핸들러
   const handlePressBack = () => {
@@ -272,7 +312,7 @@ export default function BookDetailScreen() {
   };
 
   /**
-   * 찜한 도서에 담기 — `POST` + `LIBRARY_WISHLIST_ADD_PATH` (기본 `/library/wishlist/items`, 확장 API)
+   * 찜하기 — `POST /user-books/wish` (확장 API `LIBRARY_API_BASE_URL`)
    * 서랍 책장 표지는 `POST /api/reading/bookshelf` + Drawer의 책 추가 플로우 전용.
    */
   const handleAddToWishlist = () => {
@@ -286,24 +326,29 @@ export default function BookDetailScreen() {
           (async () => {
             try {
               setIsAddingToWishlist(true);
-              const { alreadyExists } = await addBookToLibraryWishlist(book.id);
+              await addBookToWish(book.id);
 
-              if (alreadyExists) {
-                Alert.alert('알림', '이미 찜한 도서에 있는 책입니다.');
-                return;
-              }
-
-              Alert.alert('완료', '찜한 도서에 담았어요.', [
+              Alert.alert('완료', '찜 목록에 추가했어요.', [
                 {
                   text: '확인',
                   onPress: () => router.push('/my-library'),
                 },
               ]);
             } catch (e: unknown) {
-              console.error('[BookDetail] 찜하기 실패:', e);
-              const message =
-                e instanceof Error ? e.message : '찜한 도서에 담는 중 문제가 발생했어요.';
-              Alert.alert('오류', message);
+              if (e instanceof WishAddFailure) {
+                /** 409 등은 사용자에게 Alert로 안내하는 정상 흐름 — reportAppError 생략(LogBox/콘솔 스팸 방지) */
+                if (e.code === 'not_found') {
+                  Alert.alert('알림', e.message, [
+                    { text: '뒤로', onPress: () => router.back() },
+                    { text: '확인', style: 'cancel' },
+                  ]);
+                  return;
+                }
+                Alert.alert('알림', e.message);
+                return;
+              }
+              reportAppError(e, { scope: 'BookDetail.wishlistUnknown' });
+              Alert.alert('오류', userFacingMessage('wishlistUnknown'));
             } finally {
               setIsAddingToWishlist(false);
             }
@@ -321,7 +366,7 @@ export default function BookDetailScreen() {
       try {
         await Linking.openURL(book.aladinLink);
       } catch (error) {
-        console.error('[BookDetail] 링크 열기 실패:', error);
+        reportAppError(error, { scope: 'BookDetail.openStoreLink' });
         Alert.alert('오류', '링크를 열 수 없습니다.');
       }
     } else {
