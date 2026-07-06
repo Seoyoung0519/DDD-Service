@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUserBasePpm = getUserBasePpm;
+exports.updateUserBasePpm = updateUserBasePpm;
 // src/repositories/userRepository.ts
 const db_1 = require("../core/db");
 /**
@@ -24,4 +25,33 @@ async function getUserBasePpm(userId) {
     if (!Number.isFinite(basePpm) || basePpm <= 0)
         return null;
     return basePpm;
+}
+/**
+ * user_profiles.base_ppm 갱신 (없으면 insert)
+ */
+async function updateUserBasePpm(userId, ppm) {
+    if (!Number.isFinite(ppm) || ppm <= 0) {
+        throw new Error('ppm must be a positive number');
+    }
+    const nowIso = new Date().toISOString();
+    const { data: updated, error: updateError } = await db_1.supabase
+        .from('user_profiles')
+        .update({ base_ppm: ppm, updated_at: nowIso })
+        .eq('user_id', userId)
+        .select('user_id');
+    if (updateError) {
+        console.error('[updateUserBasePpm] update error', updateError.message, updateError.details);
+        throw new Error('failed to update user base_ppm');
+    }
+    if (updated && updated.length > 0)
+        return;
+    const { error: insertError } = await db_1.supabase.from('user_profiles').insert({
+        user_id: userId,
+        base_ppm: ppm,
+        updated_at: nowIso,
+    });
+    if (insertError) {
+        console.error('[updateUserBasePpm] insert error', insertError.message, insertError.details);
+        throw new Error('failed to insert user base_ppm');
+    }
 }

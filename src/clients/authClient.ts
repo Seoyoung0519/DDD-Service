@@ -46,3 +46,54 @@ export async function isUserAdultVerified(userId: string): Promise<boolean> {
 
   return Boolean(data?.adult_verified);
 }
+
+/**
+ * 사용자 관리자 여부 조회
+ * - AUTH_SERVICE_URL 설정 시 auth 내부 API 호출
+ * - 미설정 시 Supabase admins 테이블 직접 조회 (로컬 개발용)
+ */
+export async function isUserAdmin(userId: string): Promise<boolean> {
+  const authServiceUrl = process.env.AUTH_SERVICE_URL;
+
+  if (authServiceUrl) {
+    try {
+      const res = await fetch(
+        `${authServiceUrl}/api/internal/users/${userId}/admin-status`,
+        {
+          headers: {
+            'X-Internal-Api-Key': process.env.INTERNAL_API_KEY ?? '',
+          },
+        },
+      );
+
+      if (!res.ok) {
+        console.error('[authClient] admin-status failed', res.status);
+        return false;
+      }
+
+      const data = (await res.json()) as {
+        isAdmin?: boolean;
+        admin?: boolean;
+        role?: string;
+      };
+
+      return Boolean(data.isAdmin ?? data.admin ?? data.role === 'admin');
+    } catch (err) {
+      console.error('[authClient] admin-status error', err);
+      return false;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('admins')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[authClient] admins query error', error);
+    return false;
+  }
+
+  return Boolean(data);
+}

@@ -25,8 +25,9 @@ const authMiddleware = (req, res, next) => {
             return res.status(401).json({ message: 'Invalid token payload: no user id' });
         }
         req.user = {
-            id: userId,
-            email: payload.email,
+            id: String(userId),
+            email: typeof payload.email === 'string' ? payload.email : undefined,
+            role: typeof payload.role === 'string' ? payload.role : undefined,
         };
         return next();
     }

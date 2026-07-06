@@ -654,6 +654,9 @@ router.post('/sessions', authMiddleware, async (req: AuthedRequest, res: Respons
       start_page,
       end_page,
       planned_pages,
+      planned_minutes,
+      available_minutes,
+      availableMinutes,
       session_type,
       origin_place_id,
       destination_place_id,
@@ -819,7 +822,14 @@ router.post('/sessions', authMiddleware, async (req: AuthedRequest, res: Respons
     // =========================
     // ⏱ TIMER 세션
     // =========================
-    apiDebugLog('reading:sessions:timer', 'insert', { userId, book_id, user_book_id });
+    const timerPlannedMinutes = Number(planned_minutes ?? available_minutes ?? availableMinutes);
+
+    apiDebugLog('reading:sessions:timer', 'insert', {
+      userId,
+      book_id,
+      user_book_id,
+      planned_minutes: Number.isFinite(timerPlannedMinutes) ? timerPlannedMinutes : null,
+    });
 
     const session = await createReadingSession({
       userId,
@@ -828,6 +838,10 @@ router.post('/sessions', authMiddleware, async (req: AuthedRequest, res: Respons
       startPage: start_page,
       endPage: end_page,
       plannedPages: planned_pages,
+      plannedMinutes:
+        Number.isFinite(timerPlannedMinutes) && timerPlannedMinutes > 0
+          ? timerPlannedMinutes
+          : null,
       sessionType: 'timer',
       commuteProfileId: null,
     });
@@ -873,14 +887,17 @@ router.patch('/sessions/:sessionId/finish', authMiddleware, async (req: AuthedRe
       return res.status(400).json({ message: 'actual_minutes must be a positive number' });
     }
 
-    const session = await finishReadingSession({
+    const { session, ppmUpdate } = await finishReadingSession({
       userId,
       sessionId,
       actualEndPage: end_page,
       durationMinutes: actual_minutes,
     });
 
-    return res.json(session);
+    return res.json({
+      ...session,
+      ppmUpdate,
+    });
   } catch (err: any) {
     console.error('[PATCH /api/reading/sessions/:id/finish] error', err);
     const message = err?.message ?? 'Internal server error';

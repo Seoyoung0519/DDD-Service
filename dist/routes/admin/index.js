@@ -1,0 +1,24 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const requireAdmin_1 = require("../../middlewares/requireAdmin");
+const notices_1 = __importDefault(require("./notices"));
+const banners_1 = __importDefault(require("./banners"));
+const picks_1 = __importDefault(require("./picks"));
+const dictionary_1 = __importDefault(require("./dictionary"));
+const events_1 = __importDefault(require("./events"));
+const reports_1 = __importDefault(require("./reports"));
+const inquiries_1 = __importDefault(require("./inquiries"));
+const router = (0, express_1.Router)();
+router.use(requireAdmin_1.requireAdmin);
+router.use('/notices', notices_1.default);
+router.use('/banners', banners_1.default);
+router.use('/picks', picks_1.default);
+router.use('/dictionary', dictionary_1.default);
+router.use('/events', events_1.default);
+router.use('/reports', reports_1.default);
+router.use('/inquiries', inquiries_1.default);
+exports.default = router;

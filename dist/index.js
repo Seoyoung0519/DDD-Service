@@ -12,6 +12,8 @@ const search_1 = __importDefault(require("./routes/search"));
 const reading_1 = __importDefault(require("./routes/reading"));
 const commute_1 = __importDefault(require("./routes/commute"));
 const push_1 = __importDefault(require("./routes/push"));
+const admin_1 = __importDefault(require("./routes/admin"));
+const content_1 = __importDefault(require("./routes/content"));
 // 🔥 push scheduler 추가
 const pushScheduler_1 = require("./services/pushScheduler");
 const app = (0, express_1.default)();
@@ -51,6 +53,10 @@ app.use("/api/books", books_1.default);
 app.use('/api/push', push_1.default);
 const ranking_1 = __importDefault(require("./routes/ranking"));
 app.use("/api/ranking", ranking_1.default);
+// 📢 운영 콘텐츠 (공개 조회 + 신고/문의)
+app.use('/api', content_1.default);
+// 🔐 관리자 CRUD
+app.use('/api/admin', admin_1.default);
 /* =========================
    Scheduler (🔥 추가)
 ========================= */
@@ -64,4 +70,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log('🔗 search routes mounted at /api/search');
     console.log('📖 reading routes mounted at /api/reading');
     console.log('🔔 push routes mounted at /api/push');
+    console.log('📢 content routes mounted at /api/notices, /api/banners, ...');
+    console.log('🔐 admin routes mounted at /api/admin');
 });

@@ -25,3 +25,38 @@ export async function getUserBasePpm(userId: string): Promise<number | null> {
 
   return basePpm;
 }
+
+/**
+ * user_profiles.base_ppm 갱신 (없으면 insert)
+ */
+export async function updateUserBasePpm(userId: string, ppm: number): Promise<void> {
+  if (!Number.isFinite(ppm) || ppm <= 0) {
+    throw new Error('ppm must be a positive number');
+  }
+
+  const nowIso = new Date().toISOString();
+
+  const { data: updated, error: updateError } = await supabase
+    .from('user_profiles')
+    .update({ base_ppm: ppm, updated_at: nowIso })
+    .eq('user_id', userId)
+    .select('user_id');
+
+  if (updateError) {
+    console.error('[updateUserBasePpm] update error', updateError.message, updateError.details);
+    throw new Error('failed to update user base_ppm');
+  }
+
+  if (updated && updated.length > 0) return;
+
+  const { error: insertError } = await supabase.from('user_profiles').insert({
+    user_id: userId,
+    base_ppm: ppm,
+    updated_at: nowIso,
+  });
+
+  if (insertError) {
+    console.error('[updateUserBasePpm] insert error', insertError.message, insertError.details);
+    throw new Error('failed to insert user base_ppm');
+  }
+}

@@ -6,6 +6,7 @@ export interface AuthedRequest extends Request {
   user?: {
     id: string;
     email?: string;
+    role?: string;
   };
 }
 
@@ -38,8 +39,9 @@ export const authMiddleware: RequestHandler = (
     }
 
     req.user = {
-      id: userId,
-      email: payload.email,
+      id: String(userId),
+      email: typeof payload.email === 'string' ? payload.email : undefined,
+      role: typeof payload.role === 'string' ? payload.role : undefined,
     };
 
     return next();

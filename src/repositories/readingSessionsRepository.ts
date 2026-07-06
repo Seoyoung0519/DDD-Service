@@ -1,5 +1,6 @@
 // src/repositories/readingSessionsRepository.ts
 import { supabase } from '../core/db';
+import { updatePpmFromSession, PpmUpdateResult } from '../services/ppmService';
 
 export type SessionType = 'commute' | 'timer';
 
@@ -21,6 +22,7 @@ export interface ReadingSession {
   actualStartPage: number | null;
   actualEndPage: number | null;
   actualPages: number | null;
+  actualPpm: number | null;
 
   sessionType: SessionType;
 
@@ -34,6 +36,9 @@ export interface ReadingSession {
   commuteTransfers: number | null;
   commuteFare: number | null;
   commuteRouteJson: any | null;
+
+  /** 타이머 세션 추천 시간(분) */
+  plannedMinutes: number | null;
 
   /** 세션 시점 출발/도착 좌표 (places_cache 또는 클라이언트/경로 폴백) */
   originLat: number | null;
@@ -52,6 +57,7 @@ export interface CreateSessionInput {
   startPage: number;
   endPage: number;
   plannedPages?: number; // 없으면 end-start+1
+  plannedMinutes?: number | null; // 타이머 세션 추천 시간
   sessionType?: SessionType; // 기본 'commute'
   commuteProfileId?: string | null;
 
@@ -98,6 +104,7 @@ function mapRowToSession(row: any): ReadingSession {
     actualStartPage: row.actual_start_page ?? null,
     actualEndPage: row.actual_end_page ?? null,
     actualPages: row.actual_pages ?? null,
+    actualPpm: row.actual_ppm != null ? Number(row.actual_ppm) : null,
 
     sessionType: row.session_type,
 
@@ -111,6 +118,8 @@ function mapRowToSession(row: any): ReadingSession {
     commuteTransfers: row.commute_transfers != null ? Number(row.commute_transfers) : null,
     commuteFare: row.commute_fare != null ? Number(row.commute_fare) : null,
     commuteRouteJson: row.commute_route_json ?? null,
+
+    plannedMinutes: row.planned_minutes != null ? Number(row.planned_minutes) : null,
 
     originLat: row.origin_lat != null ? Number(row.origin_lat) : null,
     originLng: row.origin_lng != null ? Number(row.origin_lng) : null,
@@ -137,6 +146,7 @@ const SESSION_SELECT = `
   actual_start_page,
   actual_end_page,
   actual_pages,
+  actual_ppm,
   session_type,
 
   origin_place_id,
@@ -147,6 +157,7 @@ const SESSION_SELECT = `
   commute_transfers,
   commute_fare,
   commute_route_json,
+  planned_minutes,
 
   origin_lat,
   origin_lng,
@@ -166,6 +177,7 @@ export async function createReadingSession(params: CreateSessionInput): Promise<
     startPage,
     endPage,
     plannedPages,
+    plannedMinutes = null,
     sessionType = 'commute',
     commuteProfileId = null,
     
@@ -208,6 +220,7 @@ export async function createReadingSession(params: CreateSessionInput): Promise<
     actual_start_page: null,
     actual_end_page: null,
     actual_pages: null,
+    actual_ppm: null,
 
     session_type: sessionType,
 
@@ -230,6 +243,8 @@ export async function createReadingSession(params: CreateSessionInput): Promise<
     insertRow.origin_lng = inputOriginLng;
     insertRow.destination_lat = inputDestinationLat;
     insertRow.destination_lng = inputDestinationLng;
+  } else if (plannedMinutes != null && plannedMinutes > 0) {
+    insertRow.planned_minutes = plannedMinutes;
   }
 
   const { data, error } = await supabase
@@ -246,8 +261,13 @@ export async function createReadingSession(params: CreateSessionInput): Promise<
   return mapRowToSession(data);
 }
 
-/** 🔹 세션 종료 + user_books.current_page 반영 */
-export async function finishReadingSession(params: FinishSessionInput): Promise<ReadingSession> {
+export interface FinishSessionResult {
+  session: ReadingSession;
+  ppmUpdate: PpmUpdateResult | null;
+}
+
+/** 🔹 세션 종료 + user_books.current_page 반영 + PPM 학습 */
+export async function finishReadingSession(params: FinishSessionInput): Promise<FinishSessionResult> {
   const { userId, sessionId, actualEndPage, durationMinutes } = params;
 
   // 1) 세션 조회
@@ -274,6 +294,27 @@ export async function finishReadingSession(params: FinishSessionInput): Promise<
   const safeActualEndPage = Math.max(actualStartPage, actualEndPage);
   const actualPages = Math.max(0, safeActualEndPage - actualStartPage + 1);
 
+  const recommendedMinutes =
+    s.commute_total_minutes != null
+      ? Number(s.commute_total_minutes)
+      : s.planned_minutes != null
+        ? Number(s.planned_minutes)
+        : null;
+
+  let actualPpm: number | null = null;
+  let ppmUpdate: PpmUpdateResult | null = null;
+  if (recommendedMinutes != null && recommendedMinutes > 0 && actualPages > 0) {
+    try {
+      const ppmResult = await updatePpmFromSession(userId, actualPages, recommendedMinutes);
+      if (ppmResult) {
+        actualPpm = ppmResult.actualPpm;
+        ppmUpdate = ppmResult;
+      }
+    } catch (ppmErr) {
+      console.error('[finishReadingSession] ppm update error', ppmErr);
+    }
+  }
+
   // 2) reading_sessions 업데이트
   const { data: updatedRows, error: updateError } = await supabase
     .from('reading_sessions')
@@ -281,6 +322,7 @@ export async function finishReadingSession(params: FinishSessionInput): Promise<
       actual_start_page: actualStartPage,
       actual_end_page: safeActualEndPage,
       actual_pages: actualPages,
+      actual_ppm: actualPpm,
       effective_minutes: durationMinutes,
       ended_at: nowIso,
       updated_at: nowIso,
@@ -343,5 +385,5 @@ export async function finishReadingSession(params: FinishSessionInput): Promise<
     }
   }
 
-  return mapRowToSession(updated);
+  return { session: mapRowToSession(updated), ppmUpdate };
 }

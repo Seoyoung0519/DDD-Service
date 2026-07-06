@@ -4,6 +4,7 @@ exports.createReadingSession = createReadingSession;
 exports.finishReadingSession = finishReadingSession;
 // src/repositories/readingSessionsRepository.ts
 const db_1 = require("../core/db");
+const ppmService_1 = require("../services/ppmService");
 function mapRowToSession(row) {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
     return {
@@ -21,6 +22,7 @@ function mapRowToSession(row) {
         actualStartPage: (_g = row.actual_start_page) !== null && _g !== void 0 ? _g : null,
         actualEndPage: (_h = row.actual_end_page) !== null && _h !== void 0 ? _h : null,
         actualPages: (_j = row.actual_pages) !== null && _j !== void 0 ? _j : null,
+        actualPpm: row.actual_ppm != null ? Number(row.actual_ppm) : null,
         sessionType: row.session_type,
         // ✅ commute 선택정보
         originPlaceId: (_k = row.origin_place_id) !== null && _k !== void 0 ? _k : null,
@@ -31,6 +33,7 @@ function mapRowToSession(row) {
         commuteTransfers: row.commute_transfers != null ? Number(row.commute_transfers) : null,
         commuteFare: row.commute_fare != null ? Number(row.commute_fare) : null,
         commuteRouteJson: (_o = row.commute_route_json) !== null && _o !== void 0 ? _o : null,
+        plannedMinutes: row.planned_minutes != null ? Number(row.planned_minutes) : null,
         originLat: row.origin_lat != null ? Number(row.origin_lat) : null,
         originLng: row.origin_lng != null ? Number(row.origin_lng) : null,
         destinationLat: row.destination_lat != null ? Number(row.destination_lat) : null,
@@ -54,6 +57,7 @@ const SESSION_SELECT = `
   actual_start_page,
   actual_end_page,
   actual_pages,
+  actual_ppm,
   session_type,
 
   origin_place_id,
@@ -64,6 +68,7 @@ const SESSION_SELECT = `
   commute_transfers,
   commute_fare,
   commute_route_json,
+  planned_minutes,
 
   origin_lat,
   origin_lng,
@@ -75,7 +80,7 @@ const SESSION_SELECT = `
 `;
 /** 🔹 세션 시작 */
 async function createReadingSession(params) {
-    const { userId, userBookId, bookId, startPage, endPage, plannedPages, sessionType = 'commute', commuteProfileId = null, 
+    const { userId, userBookId, bookId, startPage, endPage, plannedPages, plannedMinutes = null, sessionType = 'commute', commuteProfileId = null, 
     // ✅ commute 선택정보
     originPlaceId, destinationPlaceId, selectedRouteId, commuteTotalMinutes = null, commuteWalkMinutes = null, commuteTransfers = null, commuteFare = null, commuteRouteJson = null, originLat: inputOriginLat = null, originLng: inputOriginLng = null, destinationLat: inputDestinationLat = null, destinationLng: inputDestinationLng = null, } = params;
     const nowIso = new Date().toISOString();
@@ -96,6 +101,7 @@ async function createReadingSession(params) {
         actual_start_page: null,
         actual_end_page: null,
         actual_pages: null,
+        actual_ppm: null,
         session_type: sessionType,
         created_at: nowIso,
         updated_at: nowIso,
@@ -114,6 +120,9 @@ async function createReadingSession(params) {
         insertRow.destination_lat = inputDestinationLat;
         insertRow.destination_lng = inputDestinationLng;
     }
+    else if (plannedMinutes != null && plannedMinutes > 0) {
+        insertRow.planned_minutes = plannedMinutes;
+    }
     const { data, error } = await db_1.supabase
         .from('reading_sessions')
         .insert(insertRow)
@@ -125,7 +134,7 @@ async function createReadingSession(params) {
     }
     return mapRowToSession(data);
 }
-/** 🔹 세션 종료 + user_books.current_page 반영 */
+/** 🔹 세션 종료 + user_books.current_page 반영 + PPM 학습 */
 async function finishReadingSession(params) {
     var _a, _b, _c, _d, _e;
     const { userId, sessionId, actualEndPage, durationMinutes } = params;
@@ -148,6 +157,25 @@ async function finishReadingSession(params) {
     const actualStartPage = (_b = (_a = s.actual_start_page) !== null && _a !== void 0 ? _a : s.planned_start_page) !== null && _b !== void 0 ? _b : 1;
     const safeActualEndPage = Math.max(actualStartPage, actualEndPage);
     const actualPages = Math.max(0, safeActualEndPage - actualStartPage + 1);
+    const recommendedMinutes = s.commute_total_minutes != null
+        ? Number(s.commute_total_minutes)
+        : s.planned_minutes != null
+            ? Number(s.planned_minutes)
+            : null;
+    let actualPpm = null;
+    let ppmUpdate = null;
+    if (recommendedMinutes != null && recommendedMinutes > 0 && actualPages > 0) {
+        try {
+            const ppmResult = await (0, ppmService_1.updatePpmFromSession)(userId, actualPages, recommendedMinutes);
+            if (ppmResult) {
+                actualPpm = ppmResult.actualPpm;
+                ppmUpdate = ppmResult;
+            }
+        }
+        catch (ppmErr) {
+            console.error('[finishReadingSession] ppm update error', ppmErr);
+        }
+    }
     // 2) reading_sessions 업데이트
     const { data: updatedRows, error: updateError } = await db_1.supabase
         .from('reading_sessions')
@@ -155,6 +183,7 @@ async function finishReadingSession(params) {
         actual_start_page: actualStartPage,
         actual_end_page: safeActualEndPage,
         actual_pages: actualPages,
+        actual_ppm: actualPpm,
         effective_minutes: durationMinutes,
         ended_at: nowIso,
         updated_at: nowIso,
@@ -207,5 +236,5 @@ async function finishReadingSession(params) {
             console.error('[finishReadingSession] update user_book error', ubUpdateError);
         }
     }
-    return mapRowToSession(updated);
+    return { session: mapRowToSession(updated), ppmUpdate };
 }

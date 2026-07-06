@@ -8,6 +8,8 @@ import searchRouter from './routes/search';
 import readingRouter from './routes/reading';
 import commuteRoutes from './routes/commute';
 import pushRoutes from './routes/push';
+import adminRouter from './routes/admin';
+import contentRouter from './routes/content';
 
 // 🔥 push scheduler 추가
 import { startPushScheduler } from './services/pushScheduler';
@@ -65,6 +67,13 @@ app.use('/api/push', pushRoutes);
 import rankingRoutes from "./routes/ranking";
 
 app.use("/api/ranking", rankingRoutes);
+
+// 📢 운영 콘텐츠 (공개 조회 + 신고/문의)
+app.use('/api', contentRouter);
+
+// 🔐 관리자 CRUD
+app.use('/api/admin', adminRouter);
+
 /* =========================
    Scheduler (🔥 추가)
 ========================= */
@@ -80,5 +89,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('🔗 search routes mounted at /api/search');
   console.log('📖 reading routes mounted at /api/reading');
   console.log('🔔 push routes mounted at /api/push');
+  console.log('📢 content routes mounted at /api/notices, /api/banners, ...');
+  console.log('🔐 admin routes mounted at /api/admin');
 });
   

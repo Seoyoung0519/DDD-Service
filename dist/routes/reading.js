@@ -519,7 +519,7 @@ router.post('/recommend', auth_1.authMiddleware, async (req, res) => {
     }
 });
 router.post('/sessions', auth_1.authMiddleware, async (req, res) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId) {
@@ -531,7 +531,7 @@ router.post('/sessions', auth_1.authMiddleware, async (req, res) => {
             book_id: req.body.book_id,
             user_book_id: req.body.user_book_id,
         });
-        const { user_book_id, book_id, start_page, end_page, planned_pages, session_type, origin_place_id, destination_place_id, selected_route_id, originLat, originLng, destinationLat, destinationLng, origin_lat, origin_lng, destination_lat, destination_lng, } = req.body;
+        const { user_book_id, book_id, start_page, end_page, planned_pages, planned_minutes, available_minutes, availableMinutes, session_type, origin_place_id, destination_place_id, selected_route_id, originLat, originLng, destinationLat, destinationLng, origin_lat, origin_lng, destination_lat, destination_lng, } = req.body;
         if (!user_book_id)
             return res.status(400).json({ message: 'user_book_id is required' });
         if (!book_id)
@@ -651,7 +651,13 @@ router.post('/sessions', auth_1.authMiddleware, async (req, res) => {
         // =========================
         // ⏱ TIMER 세션
         // =========================
-        (0, apiDebugLog_1.apiDebugLog)('reading:sessions:timer', 'insert', { userId, book_id, user_book_id });
+        const timerPlannedMinutes = Number((_l = planned_minutes !== null && planned_minutes !== void 0 ? planned_minutes : available_minutes) !== null && _l !== void 0 ? _l : availableMinutes);
+        (0, apiDebugLog_1.apiDebugLog)('reading:sessions:timer', 'insert', {
+            userId,
+            book_id,
+            user_book_id,
+            planned_minutes: Number.isFinite(timerPlannedMinutes) ? timerPlannedMinutes : null,
+        });
         const session = await createReadingSession({
             userId,
             userBookId: user_book_id,
@@ -659,6 +665,9 @@ router.post('/sessions', auth_1.authMiddleware, async (req, res) => {
             startPage: start_page,
             endPage: end_page,
             plannedPages: planned_pages,
+            plannedMinutes: Number.isFinite(timerPlannedMinutes) && timerPlannedMinutes > 0
+                ? timerPlannedMinutes
+                : null,
             sessionType: 'timer',
             commuteProfileId: null,
         });
@@ -696,13 +705,16 @@ router.patch('/sessions/:sessionId/finish', auth_1.authMiddleware, async (req, r
         if (actual_minutes == null || typeof actual_minutes !== 'number' || actual_minutes <= 0) {
             return res.status(400).json({ message: 'actual_minutes must be a positive number' });
         }
-        const session = await finishReadingSession({
+        const { session, ppmUpdate } = await finishReadingSession({
             userId,
             sessionId,
             actualEndPage: end_page,
             durationMinutes: actual_minutes,
         });
-        return res.json(session);
+        return res.json({
+            ...session,
+            ppmUpdate,
+        });
     }
     catch (err) {
         console.error('[PATCH /api/reading/sessions/:id/finish] error', err);

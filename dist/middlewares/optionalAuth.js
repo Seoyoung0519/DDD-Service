@@ -26,6 +26,7 @@ const optionalAuthMiddleware = (req, _res, next) => {
             authedReq.user = {
                 id: String(userId),
                 email: typeof payload.email === 'string' ? payload.email : undefined,
+                role: typeof payload.role === 'string' ? payload.role : undefined,
             };
         }
     }
