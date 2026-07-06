@@ -18,6 +18,7 @@ import {
 } from "../services/verification";
 import { emailSendIpRateLimit } from "../middlewares/emailSendRateLimit";
 import { formatUser, USER_PUBLIC_FIELDS } from "../services/user";
+import { getUserRole } from "../services/admin";
 import {
   AdultVerificationError,
   isAdult,
@@ -98,12 +99,13 @@ router.post("/google", async (req: Request, res: Response) => {
     );
 
     const user = result.rows[0];
+    const role = await getUserRole(user.id);
 
     // --- 🔑 6. Access Token 발급 ------------------------
-    const accessToken = createAccessToken(user.id);
+    const accessToken = createAccessToken(user.id, role);
 
     return res.json({
-      user: formatUser(user),
+      user: formatUser(user, role),
       accessToken,
       expiresIn: 3600,
     });
@@ -151,10 +153,11 @@ router.post("/kakao", async (req: Request, res: Response) => {
     );
 
     const user = result.rows[0];
-    const jwt = createAccessToken(user.id);
+    const role = await getUserRole(user.id);
+    const jwt = createAccessToken(user.id, role);
 
     return res.json({
-      user: formatUser(user),
+      user: formatUser(user, role),
       accessToken: jwt,
       expiresIn: 3600,
     });
@@ -288,10 +291,11 @@ router.post("/email/verify", async (req: Request, res: Response) => {
       user = result.rows[0];
     }
 
-    const accessToken = createAccessToken(user.id);
+    const role = await getUserRole(user.id);
+    const accessToken = createAccessToken(user.id, role);
 
     return res.json({
-      user: formatUser(user),
+      user: formatUser(user, role),
       accessToken,
       expiresIn: 3600,
     });
@@ -325,7 +329,9 @@ router.get(
       return res.status(404).json({ error: "User not found" });
     }
 
-    return res.json(formatUser(result.rows[0]));
+    const role = await getUserRole(userId);
+
+    return res.json(formatUser(result.rows[0], role));
   }
 );
 

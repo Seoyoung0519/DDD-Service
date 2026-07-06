@@ -1,3 +1,5 @@
+import type { UserRole } from "./admin";
+
 export interface UserRow {
   id: string;
   email: string | null;
@@ -10,7 +12,7 @@ export interface UserRow {
 export const USER_PUBLIC_FIELDS =
   "id, email, name, avatar_url, adult_verified, adult_verified_at";
 
-export function formatUser(user: UserRow) {
+export function formatUser(user: UserRow, role: UserRole = "user") {
   return {
     id: user.id,
     email: user.email,
@@ -18,5 +20,6 @@ export function formatUser(user: UserRow) {
     avatarUrl: user.avatar_url,
     adultVerified: user.adult_verified ?? false,
     adultVerifiedAt: user.adult_verified_at ?? null,
+    role,
   };
 }
