@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Platform,
@@ -27,6 +28,12 @@ import {
   indexCalendarDaysByDayOfMonth,
   type CalendarDayOut,
 } from '@/src/api/library';
+import {
+  deleteReadingProof,
+  listMyProofsForMonth,
+  proofLocalDateKey,
+  type ProofListItem,
+} from '@/src/api/proofUpload';
 
 const TODAY_ICON = require('../assets/images/drawer/bus.png');
 const READING_ICON = require('../assets/images/drawer/book.png');
@@ -83,14 +90,28 @@ function chunkWeeks(cells: (number | null)[]): (number | null)[][] {
   return rows;
 }
 
+/** capturedAt/createdAt 기준 최신 인증샷 1장 */
+function pickLatestProof(items: ProofListItem[]): ProofListItem | null {
+  const withImage = items.filter((p) => Boolean(p.imageUrl?.trim() || p.id));
+  if (withImage.length === 0) return null;
+  return withImage.reduce((latest, cur) => {
+    const a = Date.parse(latest.capturedAt ?? latest.createdAt ?? '') || 0;
+    const b = Date.parse(cur.capturedAt ?? cur.createdAt ?? '') || 0;
+    return b >= a ? cur : latest;
+  });
+}
+
 export default function ReadingCalendarScreen() {
   const router = useRouter();
   const [viewDate, setViewDate] = useState(() => new Date());
   /** 모달에 표시할 일 (null이면 닫힘) */
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [calendarByDay, setCalendarByDay] = useState<Record<number, CalendarDayOut>>({});
+  /** 날짜(일) → 해당일 인증샷 목록 (GET /proofs 병합) */
+  const [proofsByDay, setProofsByDay] = useState<Record<number, ProofListItem[]>>({});
   const [calendarLoading, setCalendarLoading] = useState(true);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [deletingProofId, setDeletingProofId] = useState<string | null>(null);
 
   const year = viewDate.getFullYear();
   const monthIndex = viewDate.getMonth();
@@ -111,17 +132,59 @@ export default function ReadingCalendarScreen() {
     setCalendarError(null);
     /** 이전 월 썸네일이 남지 않도록 즉시 비움 (달 넘기기 후 빈 월 UI) */
     setCalendarByDay({});
+    setProofsByDay({});
     void (async () => {
       try {
-        const data = await fetchLibraryCalendar(year, monthNum);
+        const [data, monthProofs] = await Promise.all([
+          fetchLibraryCalendar(year, monthNum),
+          listMyProofsForMonth(year, monthNum),
+        ]);
         if (cancelled) return;
-        setCalendarByDay(indexCalendarDaysByDayOfMonth(data.days));
+
+        const byDay = indexCalendarDaysByDayOfMonth(data.days);
+        const proofsMap: Record<number, ProofListItem[]> = {};
+
+        for (const proof of monthProofs) {
+          const key = proofLocalDateKey(proof.capturedAt ?? proof.createdAt);
+          if (!key) continue;
+          const parts = key.split('-').map((x) => Number(x));
+          if (parts[0] !== year || parts[1] !== monthNum) continue;
+          const dayNum = parts[2];
+          if (!Number.isFinite(dayNum) || dayNum < 1 || dayNum > 31) continue;
+          if (!proofsMap[dayNum]) proofsMap[dayNum] = [];
+          proofsMap[dayNum].push(proof);
+        }
+
+        // 날짜별 최신 인증샷만 캘린더 썸네일·ID에 반영
+        for (const [dayKey, list] of Object.entries(proofsMap)) {
+          const dayNum = Number(dayKey);
+          const latest = pickLatestProof(list);
+          if (!latest) continue;
+          const entry = byDay[dayNum];
+          if (entry) {
+            byDay[dayNum] = {
+              ...entry,
+              proofId: latest.id,
+              proofImageUrl: latest.imageUrl ?? entry.proofImageUrl ?? null,
+            };
+          } else if (latest.imageUrl) {
+            byDay[dayNum] = {
+              date: proofLocalDateKey(latest.capturedAt ?? latest.createdAt) ?? `${year}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`,
+              proofId: latest.id,
+              proofImageUrl: latest.imageUrl,
+            };
+          }
+        }
+
+        setCalendarByDay(byDay);
+        setProofsByDay(proofsMap);
       } catch (e) {
         if (cancelled) return;
         if (__DEV__) {
           console.warn('[ReadingCalendarScreen] 캘린더 조회 실패:', e);
         }
         setCalendarByDay({});
+        setProofsByDay({});
         setCalendarError(
           typeof e === 'object' && e != null && 'message' in e
             ? String((e as { message: unknown }).message)
@@ -153,15 +216,97 @@ export default function ReadingCalendarScreen() {
       ? `${String(monthIndex + 1).padStart(2, '0')}월 ${selectedDay}일`
       : '';
 
-  const pagesLine =
-    selectedEntry &&
-    selectedEntry.readPageStart != null &&
-    selectedEntry.readPageEnd != null
-      ? `${selectedEntry.readPageStart}p - ${selectedEntry.readPageEnd}p`
-      : selectedEntry &&
-          (selectedEntry.readPageStart != null || selectedEntry.readPageEnd != null)
-        ? `${selectedEntry.readPageStart ?? '—'}p - ${selectedEntry.readPageEnd ?? '—'}p`
-        : '—';
+  let pagesLine = '-';
+  if (selectedEntry) {
+    const start = selectedEntry.readPageStart;
+    const end = selectedEntry.readPageEnd;
+    if (start != null && end != null) {
+      pagesLine = `${start}p - ${end}p`;
+    } else if (start != null || end != null) {
+      pagesLine = `${start ?? '-'}p - ${end ?? '-'}p`;
+    }
+  }
+
+  /** 선택 일 — 최신 인증샷 1장만 표시 */
+  const selectedDayProof = useMemo((): ProofListItem | null => {
+    if (selectedDay == null) return null;
+    const fromList = proofsByDay[selectedDay];
+    if (fromList && fromList.length > 0) {
+      return pickLatestProof(fromList);
+    }
+    const url = selectedEntry?.proofImageUrl?.trim();
+    if (!url) return null;
+    return {
+      id: selectedEntry?.proofId?.trim() || '',
+      imageUrl: url,
+      bookId: selectedEntry?.bookId ?? null,
+      capturedAt: null,
+      createdAt: null,
+    };
+  }, [selectedDay, proofsByDay, selectedEntry]);
+
+  const confirmDeleteProof = (proof: ProofListItem) => {
+    const proofId = proof.id?.trim();
+    if (!proofId || selectedDay == null || deletingProofId) {
+      if (!proofId) {
+        Alert.alert(
+          '삭제 불가',
+          '이 인증샷의 ID를 찾지 못했습니다. 잠시 후 다시 시도해 주세요.',
+        );
+      }
+      return;
+    }
+
+    Alert.alert(
+      '인증샷 삭제',
+      '이 인증샷을 삭제할까요? 삭제 후에는 복구할 수 없습니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => void executeDeleteProof(proofId, selectedDay),
+        },
+      ],
+    );
+  };
+
+  const executeDeleteProof = async (proofId: string, day: number) => {
+    setDeletingProofId(proofId);
+    try {
+      await deleteReadingProof(proofId);
+      setProofsByDay((prevProofs) => {
+        const remaining = (prevProofs[day] ?? []).filter((p) => p.id !== proofId);
+        const nextProofs = { ...prevProofs };
+        if (remaining.length === 0) delete nextProofs[day];
+        else nextProofs[day] = remaining;
+
+        const next = pickLatestProof(remaining);
+        setCalendarByDay((prevCal) => {
+          const entry = prevCal[day];
+          if (!entry) return prevCal;
+          return {
+            ...prevCal,
+            [day]: {
+              ...entry,
+              proofId: next?.id ?? null,
+              proofImageUrl: next?.imageUrl ?? null,
+            },
+          };
+        });
+
+        return nextProofs;
+      });
+      Alert.alert('인증샷을 삭제했습니다');
+    } catch (error) {
+      Alert.alert(
+        '삭제 실패',
+        error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.',
+      );
+    } finally {
+      setDeletingProofId(null);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -286,6 +431,35 @@ export default function ReadingCalendarScreen() {
               <View style={styles.dayModalSectionBox}>
                 <Text style={styles.dayModalSectionBody}>{pagesLine}</Text>
               </View>
+
+              {selectedDayProof?.imageUrl?.trim() ? (
+                <>
+                  <View style={styles.dayModalRecordHeader}>
+                    <Text style={[styles.dayModalSectionLabel, styles.dayModalRecordLabel]}>
+                      오늘의 기록
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.dayModalDeleteBtn}
+                      onPress={() => confirmDeleteProof(selectedDayProof)}
+                      disabled={deletingProofId != null}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      {deletingProofId === selectedDayProof.id ? (
+                        <ActivityIndicator size="small" color="#B33B3B" />
+                      ) : (
+                        <>
+                          <Ionicons name="trash-outline" size={16} color="#B33B3B" />
+                          <Text style={styles.dayModalDeleteBtnText}>삭제</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  <ExpoImage
+                    source={{ uri: selectedDayProof.imageUrl.trim() }}
+                    style={styles.dayModalRecordImage}
+                    contentFit="cover"
+                  />
+                </>
+              ) : null}
             </View>
 
             <TouchableOpacity
@@ -583,6 +757,38 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: FONTS.REGULAR,
     color: COLORS.TEXT,
+  },
+  dayModalRecordLabel: {
+    marginTop: 16,
+    marginBottom: 0,
+  },
+  dayModalRecordHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    minHeight: 28,
+  },
+  dayModalDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  dayModalDeleteBtnText: {
+    fontSize: 13,
+    fontFamily: FONTS.MEDIUM,
+    fontWeight: '600',
+    color: '#B33B3B',
+  },
+  dayModalRecordImage: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    maxHeight: 320,
+    borderRadius: 12,
+    backgroundColor: '#EEE',
   },
   dayModalCloseBtn: {
     width: '100%',

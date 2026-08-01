@@ -67,10 +67,10 @@ export async function fetchCurrentReadingBooks(): Promise<CurrentReadingItem[]> 
 }
 
 /**
- * 내 서재(책장) 조회
+ * 내 서재 전체 조회 (planned·reading·completed·dropped)
  * GET /api/reading/bookshelf
  */
-export async function fetchBookshelf(): Promise<BookshelfItem[]> {
+export async function fetchBookshelfResponse(): Promise<BookshelfResponse> {
   try {
     const authHeader = await getAuthHeader();
 
@@ -102,19 +102,27 @@ export async function fetchBookshelf(): Promise<BookshelfItem[]> {
 
     const data: BookshelfResponse = await res.json();
     console.log('[Reading API] Response data:', JSON.stringify(data, null, 2));
-    // reading과 planned 목록을 합쳐서 반환
-    return [...(data.reading || []), ...(data.planned || [])];
+    return data;
   } catch (error: any) {
-    console.error('[Reading API] fetchBookshelf error:', {
+    console.error('[Reading API] fetchBookshelfResponse error:', {
       message: error?.message,
       stack: error?.stack,
       name: error?.name,
     });
-    // 원본 에러 메시지가 있으면 그대로 전달
     if (error?.message) {
       throw error;
     }
     throw new Error('책장 목록을 불러오는데 실패했습니다.');
   }
+}
+
+/**
+ * 독서 세션 — 「책장에서 불러오기」용 목록.
+ * 읽기 전에 담아둔 책(planned)만 반환. 진행 중 책은 ReadingSession_2에서 별도 조회.
+ * (서랍장 Drawer_1은 getBookshelfList()를 사용하며 이 함수와 무관)
+ */
+export async function fetchPlannedBooksForReadingSession(): Promise<BookshelfItem[]> {
+  const data = await fetchBookshelfResponse();
+  return data.planned || [];
 }
 

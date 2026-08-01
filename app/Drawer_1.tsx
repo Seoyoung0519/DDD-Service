@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   Alert,
@@ -26,12 +26,14 @@ import {
   type Keyring,
 } from '@/src/services/keyring/keyringService';
 import { FeedTimeline } from '@/src/components/feed/FeedTimeline';
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
+import { NotificationBellButton } from '@/src/components/header/NotificationBellButton';
+import { ProfileHeaderButton } from '@/src/components/header/ProfileHeaderButton';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // 이미지 경로 (app 바로 아래에 있으므로 한 단계만 올라감)
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
-const BELL_ICON = require('../assets/images/drawer/bell.png');
 const KEYRING_IMAGE = require('../assets/images/drawer/빈키링.png');
 const BOOK1_COVER = require('../assets/images/drawer/book1.png');
 const BOOK2_COVER = require('../assets/images/drawer/book2.png');
@@ -80,40 +82,6 @@ const FONTS = {
   }),
 };
 
-// 책 데이터 타입
-interface Book {
-  id: string;
-  cover: any;
-  title: string;
-  author: string;
-  currentPage: number;
-  totalPages: number;
-  progress: number;
-}
-
-// 샘플 책 데이터
-const sampleBooks: Book[] = [
-  {
-    id: '1',
-    cover: BOOK2_COVER,
-    title: '용의자X의헌신',
-    author: '히가시노 게이고...',
-    currentPage: 240,
-    totalPages: 459,
-    progress: 0.45,
-  },
-  {
-    id: '2',
-    cover: BOOK1_COVER,
-    title: '팩트풀니스',
-    author: '한스 로슬링, 올라 로..',
-    currentPage: 31,
-    totalPages: 320,
-    progress: 0.1,
-  },
-];
-
-// 책장 이미지 배열
 const bookshelfImages = [
   BOOKSHELF_IMAGE,
   BOOKSHELF_IMAGE,
@@ -122,6 +90,7 @@ const bookshelfImages = [
 
 export default function HomeShelf() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState('서랍장');
   const [activeNav, setActiveNav] = useState('투데이');
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
@@ -143,8 +112,17 @@ export default function HomeShelf() {
       const plannedBooks = res.data?.planned || [];
       const readingBooksData = res.data?.reading || [];
       const completedBooksData = res.data?.completed || [];
-      
-      setBookshelfItems(plannedBooks);
+
+      const shelfBookIds = new Set<string>();
+      const booksOnShelf: BookshelfItem[] = [];
+      for (const book of [...readingBooksData, ...plannedBooks]) {
+        const id = book.userBookId || book.bookId;
+        if (!id || shelfBookIds.has(id)) continue;
+        shelfBookIds.add(id);
+        booksOnShelf.push(book);
+      }
+
+      setBookshelfItems(booksOnShelf);
       setReadingBooks(readingBooksData);
       setCompletedBooks(completedBooksData);
     } catch (err) {
@@ -240,6 +218,12 @@ export default function HomeShelf() {
   // 페이지에 포커스될 때마다 책장·키링 (전환 애니메이션 후 로드로 체감 지연 완화)
   useFocusEffect(
     useCallback(() => {
+      if (tab === '피드') {
+        setActiveTab('피드');
+      } else if (tab === '서랍장') {
+        setActiveTab('서랍장');
+      }
+
       let cancelled = false;
       InteractionManager.runAfterInteractions(() => {
         if (cancelled) return;
@@ -249,7 +233,7 @@ export default function HomeShelf() {
       return () => {
         cancelled = true;
       };
-    }, [])
+    }, [tab])
   );
 
   // 책 추가 성공 시 책장 상태 갱신
@@ -283,18 +267,9 @@ export default function HomeShelf() {
           <Text style={styles.logoText}>대독단</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="person-circle-outline" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <ExpoImage source={BELL_ICON} style={styles.bellIcon} contentFit="contain" />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>0</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <ProfileHeaderButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
+          <NotificationBellButton style={styles.headerIconButton} />
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 
@@ -803,21 +778,23 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: 1,
-    right: -5,
+    top: 0,
+    right: -2,
     backgroundColor: COLORS.PRIMARY,
-    borderRadius: 10,
-    minWidth: 23,
-    height: 16,
+    borderRadius: 999,
+    minWidth: 22,
+    height: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
   },
   badgeText: {
     color: COLORS.BACKGROUND,
     fontSize: 10,
     fontFamily: FONTS.BOLD,
     fontWeight: '700',
+    lineHeight: 12,
+    includeFontPadding: false,
   },
   tabContainer: {
     flexDirection: 'row',

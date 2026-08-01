@@ -1,5 +1,33 @@
 import { LOGIN_API_BASE_URL, ONBOARDING_API_BASE_URL } from '@/src/config/api';
-import { getAccessToken } from '@/src/services/auth/authService';
+import { clearAccessToken, getAccessToken } from '@/src/services/auth/authService';
+import {
+  saveCachedCommuteProfile,
+  saveCachedOnboardingUserType,
+  saveCachedReadingProfile,
+} from '@/src/services/onboarding/onboardingProfileCache';
+import { parseApiErrorDetail } from '@/src/utils/extendedApiAuth';
+
+/** Render 무료 서버 콜드스타트 시 무한 대기 방지 */
+const BOOTSTRAP_FETCH_TIMEOUT_MS = 6000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = BOOTSTRAP_FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error(`요청 시간 초과 (${timeoutMs}ms)`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export type OnboardingUserType = 'worker_student' | 'other';
 
@@ -41,6 +69,7 @@ export interface ReadingProfilePayload {
   preferredGenres: string[];
   readingSpeed: ReadingSpeed;
   weeklyReadCount: number;
+  avatarId?: string;
 }
 
 export interface OkResponse {
@@ -86,49 +115,50 @@ export interface ReadingTestSkipResponse {
   isOnboarded: boolean;
 }
 
-async function authedOnboardingFetch(path: string, init: RequestInit = {}) {
+async function authedOnboardingFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const token = await getAccessToken();
   if (!token) {
     throw new Error('인증 토큰이 없습니다. 다시 로그인해주세요.');
   }
 
   const headers: Record<string, string> = {
-    ...(init.headers as Record<string, string> | undefined),
+    Accept: 'application/json',
     Authorization: `Bearer ${token}`,
+    ...(init.headers as Record<string, string> | undefined),
   };
-
-  const res = await fetch(`${ONBOARDING_API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(text || `온보딩 API 요청 실패 (status: ${res.status})`);
+  const apiKey = process.env.EXPO_PUBLIC_DAEDOKDAN_API_KEY;
+  if (apiKey) {
+    headers['x-api-key'] = apiKey;
   }
 
+  const res = await fetch(`${ONBOARDING_API_BASE_URL}${path}`, { ...init, headers });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    const detail = parseApiErrorDetail(body);
+    throw new Error(detail || `온보딩 요청 실패 (HTTP ${res.status})`);
+  }
   return res;
 }
 
-export async function fetchOnboardingState(): Promise<OnboardingStateResponse | null> {
+async function fetchOnboardingStateResponse(): Promise<Response | null> {
   const token = await getAccessToken();
-  if (!token) {
-    return null;
-  }
+  if (!token) return null;
 
   const url = `${ONBOARDING_API_BASE_URL}/onboarding/state`;
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+  const apiKey = process.env.EXPO_PUBLIC_DAEDOKDAN_API_KEY;
+  if (apiKey) headers['x-api-key'] = apiKey;
 
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const res = await fetchWithTimeout(url, { method: 'GET', headers });
+  return res.ok ? res : null;
+}
 
-  if (!res.ok) {
-    // 온보딩 상태 조회 실패 시에는 온보딩 미완료로 간주하고 null 반환
-    return null;
-  }
+export async function fetchOnboardingState(): Promise<OnboardingStateResponse | null> {
+  const res = await fetchOnboardingStateResponse();
+  if (!res) return null;
 
   const data = (await res.json()) as OnboardingStateResponse;
   return data;
@@ -150,11 +180,17 @@ export async function fetchBootstrapSessionAndOnboarding(): Promise<{
   const authHeader = { Authorization: `Bearer ${token}` };
 
   const [meRes, onboardingRes] = await Promise.all([
-    fetch(`${LOGIN_API_BASE_URL}/api/auth/me`, { headers: authHeader }),
-    fetch(`${ONBOARDING_API_BASE_URL}/onboarding/state`, { headers: authHeader }),
+    fetchWithTimeout(`${LOGIN_API_BASE_URL}/api/auth/me`, { headers: authHeader }),
+    (async () => {
+      const res = await fetchOnboardingStateResponse();
+      return res ?? new Response(null, { status: 401 });
+    })(),
   ]);
 
   if (!meRes.ok) {
+    if (meRes.status === 401) {
+      await clearAccessToken();
+    }
     return { hasValidSession: false, onboarding: null };
   }
 
@@ -178,7 +214,9 @@ export async function setOnboardingUserType(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  return (await res.json()) as SetUserTypeResponse;
+  const data = (await res.json()) as SetUserTypeResponse;
+  await saveCachedOnboardingUserType(payload.userType);
+  return data;
 }
 
 export async function submitReadingProfile(payload: ReadingProfilePayload): Promise<OkResponse> {
@@ -187,7 +225,9 @@ export async function submitReadingProfile(payload: ReadingProfilePayload): Prom
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  return (await res.json()) as OkResponse;
+  const data = (await res.json()) as OkResponse;
+  await saveCachedReadingProfile(payload);
+  return data;
 }
 
 export async function submitCommuteProfile(payload: CommuteProfilePayload): Promise<OkResponse> {
@@ -196,7 +236,9 @@ export async function submitCommuteProfile(payload: CommuteProfilePayload): Prom
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  return (await res.json()) as OkResponse;
+  const data = (await res.json()) as OkResponse;
+  await saveCachedCommuteProfile(payload);
+  return data;
 }
 
 export async function startReadingTest(): Promise<ReadingTestStartResponse> {

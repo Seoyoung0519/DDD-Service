@@ -16,6 +16,11 @@ import {
 } from 'react-native';
 
 import { fetchFeed, type FeedItemOut } from '@/src/api/feed';
+import {
+  FeedReportMenuButton,
+  UserReportMenuButton,
+} from '@/src/components/reports/FeedReportMenuButton';
+import { ReportActionSheet } from '@/src/components/reports/ReportActionSheet';
 
 const BOOK_FALLBACK = require('../../../assets/images/drawer/book1.png');
 
@@ -46,6 +51,7 @@ function FeedCard({
   item: FeedItemOut;
   onPressBook: () => void;
 }) {
+  const [reportTarget, setReportTarget] = useState<'user' | 'review' | null>(null);
   const cover = item.bookThumbnailUrl?.trim()
     ? { uri: item.bookThumbnailUrl }
     : BOOK_FALLBACK;
@@ -54,19 +60,23 @@ function FeedCard({
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={styles.avatarWrap}>
+        <UserReportMenuButton
+          triggerStyle={styles.avatarWrap}
+          userName={displayName}
+          onPressReport={() => setReportTarget('user')}>
           {item.userAvatarUrl?.trim() ? (
             <Image source={{ uri: item.userAvatarUrl }} style={styles.avatarImg} resizeMode="cover" />
           ) : (
             <Ionicons name="person" size={26} color="#9A9A9A" />
           )}
-        </View>
+        </UserReportMenuButton>
         <View style={styles.cardHeaderText}>
           <Text style={styles.userName} numberOfLines={1}>
             {displayName}
           </Text>
           <Text style={styles.userTag}>포스트</Text>
         </View>
+        <FeedReportMenuButton onPressReport={() => setReportTarget('review')} />
       </View>
 
       <View style={styles.coverBand}>
@@ -95,6 +105,16 @@ function FeedCard({
       <TouchableOpacity style={styles.bookCta} activeOpacity={0.75} onPress={onPressBook}>
         <Text style={styles.bookCtaText}>책 보기</Text>
       </TouchableOpacity>
+      {reportTarget ? (
+        <ReportActionSheet
+          visible
+          targetType={reportTarget}
+          targetId={reportTarget === 'user' ? item.userId : item.reviewId}
+          actionLabel={reportTarget === 'user' ? '신고하기' : '피드 신고하기'}
+          startWithForm
+          onClose={() => setReportTarget(null)}
+        />
+      ) : null}
     </View>
   );
 }

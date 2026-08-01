@@ -1,6 +1,14 @@
-import { setOnboardingUserType } from '@/src/services/onboarding/onboardingService';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { saveOnboardingUserTypeForEdit } from '@/src/services/onboarding/onboardingProfileEditSave';
+import { setOnboardingUserType, fetchOnboardingState } from '@/src/services/onboarding/onboardingService';
+import { loadOnboardingProfileForEdit } from '@/src/api/userProfile';
+import {
+  isOnboardingEditMode,
+  mapUserTypeFromProfile,
+} from '@/src/utils/onboardingProfileEdit';
+import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
+import { useFocusEffect } from '@react-navigation/native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +25,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
-const BUS_ICON = require('../assets/images/onboarding/daedokdan-bus.png');
 const WORKER_STUDENT_IMAGE = require('../assets/images/onboarding/직장인.png');
 
 // 색상 상수
@@ -63,8 +70,24 @@ type UserType = 'worker_student' | 'other';
 
 export default function Onboarding_2() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ edit?: string }>();
+  const isEditMode = isOnboardingEditMode(params.edit);
   const [selectedUserType, setSelectedUserType] = useState<UserType>('worker_student');
   const [submitting, setSubmitting] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isEditMode) return;
+      void (async () => {
+        try {
+          const profile = await loadOnboardingProfileForEdit();
+          setSelectedUserType(mapUserTypeFromProfile(profile.userType));
+        } catch {
+          // 기본값 유지
+        }
+      })();
+    }, [isEditMode]),
+  );
 
   const handleSelect = (type: UserType) => {
     setSelectedUserType(type);
@@ -74,6 +97,24 @@ export default function Onboarding_2() {
     if (submitting) return;
     setSubmitting(true);
     try {
+      if (isEditMode) {
+        await saveOnboardingUserTypeForEdit({ userType: selectedUserType });
+        Alert.alert('저장 완료', '사용자 유형이 저장되었습니다.', [
+          { text: '확인', onPress: () => router.back() },
+        ]);
+        return;
+      }
+
+      const onboarding = await fetchOnboardingState();
+      if (onboarding?.isOnboarded) {
+        Alert.alert(
+          '안내',
+          '이미 온보딩을 완료한 계정입니다.\n계정 관리 > 온보딩 프로필 수정하기에서 변경해 주세요.',
+          [{ text: '확인', onPress: () => router.back() }],
+        );
+        return;
+      }
+
       await setOnboardingUserType({ userType: selectedUserType });
       router.push({
         pathname: '/Onboarding_3',
@@ -92,12 +133,7 @@ export default function Onboarding_2() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* 상단 앱바 */}
-      <View style={styles.appBar}>
-        <View style={styles.appBarLeft}>
-          <Image source={BUS_ICON} style={styles.busIcon} resizeMode="contain" />
-          <Text style={styles.appTitle}>대독단</Text>
-        </View>
-      </View>
+      <OnboardingAppBar hideSkip={isEditMode} />
 
       {/* 회색 바 */}
       <View style={styles.divider} />
@@ -162,7 +198,7 @@ export default function Onboarding_2() {
         {submitting ? (
           <ActivityIndicator color={COLORS.BUTTON_TEXT} />
         ) : (
-          <Text style={styles.nextButtonText}>다음</Text>
+          <Text style={styles.nextButtonText}>{isEditMode ? '저장' : '다음'}</Text>
         )}
       </TouchableOpacity>
     </SafeAreaView>

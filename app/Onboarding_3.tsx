@@ -1,16 +1,29 @@
+import { submitReadingProfile, fetchOnboardingState } from '@/src/services/onboarding/onboardingService';
+import { saveReadingProfileForEdit } from '@/src/services/onboarding/onboardingProfileEditSave';
+import { loadOnboardingProfileForEdit, updateUserProfile } from '@/src/api/userProfile';
 import {
-  submitReadingProfile,
-  type ReadingSpeed as ApiReadingSpeed,
-} from '@/src/services/onboarding/onboardingService';
+  isOnboardingEditMode,
+  mapReadingSpeedToUi,
+  mapUiSpeedToApi,
+  mapWeeklyCountToFreq,
+  mapUserTypeFromProfile,
+} from '@/src/utils/onboardingProfileEdit';
+import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
+import { UserAvatarPickerModal } from '@/src/components/profile/UserAvatarPickerModal';
+import {
+  getUserAvatarSource,
+  isUserAvatarId,
+  type UserAvatarId,
+} from '@/src/constants/userAvatars';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
-  Image,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,14 +31,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// 이미지 경로
-const BUS_ICON = require('../assets/images/onboarding/daedokdan-bus.png');
-// 기본 프로필 이미지 (임시로 빈 원 또는 기본 아이콘 사용)
-const DEFAULT_AVATAR = require('../assets/images/onboarding/daedokdan-bus.png'); // 임시
+const DEFAULT_AVATAR_ID: UserAvatarId = 'avatar_01';
 
 // 색상 상수
 const COLORS = {
@@ -98,12 +107,6 @@ type Genre = (typeof GENRES)[number];
 type UiReadingSpeed = 1 | 2 | 3 | 4 | 5; // 5개의 원 (1: 매우 느림, 3: 보통, 5: 매우 빠름)
 type ReadingFreq = '1' | '2' | '3' | '4+';
 
-function mapUiSpeedToApi(speed: UiReadingSpeed): ApiReadingSpeed {
-  if (speed <= 2) return 'slow';
-  if (speed === 3) return 'normal';
-  return 'fast';
-}
-
 function mapFreqToWeeklyCount(freq: ReadingFreq): number {
   if (freq === '4+') return 4;
   return parseInt(freq, 10);
@@ -111,15 +114,45 @@ function mapFreqToWeeklyCount(freq: ReadingFreq): number {
 
 export default function Onboarding_3() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ userType?: string }>();
+  const params = useLocalSearchParams<{ userType?: string; edit?: string }>();
+  const isEditMode = isOnboardingEditMode(params.edit);
   const userType = params.userType as 'worker_student' | 'other' | undefined;
 
   const [nickname, setNickname] = useState('');
+  const [avatarId, setAvatarId] = useState<UserAvatarId>(DEFAULT_AVATAR_ID);
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [selectedGenres, setSelectedGenres] = useState<Genre[]>([]);
-  const [speed, setSpeed] = useState<UiReadingSpeed>(3); // 기본값: 보통 (3번째 원)
+  const [speed, setSpeed] = useState<UiReadingSpeed>(3);
   const [freq, setFreq] = useState<ReadingFreq | null>(null);
   const [showFreqDropdown, setShowFreqDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [resolvedUserType, setResolvedUserType] = useState<'worker_student' | 'other' | undefined>(
+    userType,
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isEditMode) return;
+      void (async () => {
+        try {
+          const profile = await loadOnboardingProfileForEdit();
+          setNickname(profile.nickname?.trim() ?? '');
+          const genres = (profile.preferredGenres ?? []).filter((g): g is Genre =>
+            (GENRES as readonly string[]).includes(g),
+          );
+          setSelectedGenres(genres);
+          setSpeed(mapReadingSpeedToUi(profile.readingSpeed));
+          setFreq(mapWeeklyCountToFreq(profile.weeklyReadCount));
+          setResolvedUserType(mapUserTypeFromProfile(profile.userType));
+          if (isUserAvatarId(profile.avatarId)) {
+            setAvatarId(profile.avatarId);
+          }
+        } catch {
+          // 빈 폼 유지
+        }
+      })();
+    }, [isEditMode]),
+  );
 
   const toggleGenre = (genre: Genre) => {
     setSelectedGenres((prev) =>
@@ -148,17 +181,44 @@ export default function Onboarding_3() {
 
     setSubmitting(true);
     try {
-      await submitReadingProfile({
+      const profilePayload = {
         nickname: nickname.trim(),
         preferredGenres: [...selectedGenres],
         readingSpeed: mapUiSpeedToApi(speed),
         weeklyReadCount: mapFreqToWeeklyCount(freq),
-      });
+        avatarId,
+      };
 
-      if (userType === 'worker_student') {
+      if (isEditMode) {
+        await saveReadingProfileForEdit(profilePayload);
+        Alert.alert('저장 완료', '독서 프로필이 저장되었습니다.', [
+          { text: '확인', onPress: () => router.back() },
+        ]);
+        return;
+      }
+
+      const onboarding = await fetchOnboardingState();
+      if (onboarding?.isOnboarded) {
+        Alert.alert(
+          '안내',
+          '이미 온보딩을 완료한 계정입니다.\n계정 관리 > 온보딩 프로필 수정하기에서 변경해 주세요.',
+          [{ text: '확인', onPress: () => router.back() }],
+        );
+        return;
+      }
+
+      await submitReadingProfile(profilePayload);
+      try {
+        await updateUserProfile({ avatarId });
+      } catch {
+        // 온보딩 API·캐시에는 avatarId 저장됨
+      }
+
+      const nextUserType = userType ?? resolvedUserType;
+      if (nextUserType === 'worker_student') {
         router.push({
           pathname: '/Onboarding_4',
-          params: { userType: userType },
+          params: { userType: nextUserType },
         });
       } else {
         router.push('/Onboarding_5');
@@ -183,12 +243,7 @@ export default function Onboarding_3() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* 상단 앱바 */}
-      <View style={styles.appBar}>
-        <View style={styles.appBarLeft}>
-          <Image source={BUS_ICON} style={styles.busIcon} resizeMode="contain" />
-          <Text style={styles.appTitle}>대독단</Text>
-        </View>
-      </View>
+      <OnboardingAppBar hideSkip={isEditMode} />
 
       {/* 회색 바 */}
       <View style={styles.divider} />
@@ -199,7 +254,9 @@ export default function Onboarding_3() {
         showsVerticalScrollIndicator={false}>
         {/* 상단 타이틀 영역 */}
         <View style={styles.headerSection}>
-          <Text style={styles.mainTitle}>독서 프로필을 입력해주세요</Text>
+          <Text style={styles.mainTitle}>
+            {isEditMode ? '독서 프로필을 수정해주세요' : '독서 프로필을 입력해주세요'}
+          </Text>
           <Text style={styles.subtitle}>
             프로필은 추후 대독단의 '프로필' 페이지에서{'\n'}
             언제든지 수정 가능합니다
@@ -212,15 +269,19 @@ export default function Onboarding_3() {
             프로필<Text style={styles.asterisk}>*</Text>
           </Text>
           <Text style={styles.sectionDescription}>
-            프로필 사진을 따로 설정하지 않으면 아래의 기본 이미지로 설정됩니다.
+            프로필 사진을 눌러 8종 캐릭터 중 하나를 선택할 수 있습니다.
           </Text>
           <View style={styles.profileRow}>
-            <View style={styles.avatarContainer}>
-              <Image source={DEFAULT_AVATAR} style={styles.avatar} resizeMode="cover" />
-              <TouchableOpacity style={styles.editIconContainer}>
+            <Pressable
+              style={styles.avatarContainer}
+              onPress={() => setAvatarPickerVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="프로필 캐릭터 선택">
+              <Image source={getUserAvatarSource(avatarId)} style={styles.avatar} contentFit="cover" />
+              <View style={styles.editIconContainer}>
                 <Ionicons name="pencil" size={12} color="#333333" />
-              </TouchableOpacity>
-            </View>
+              </View>
+            </Pressable>
             <View style={styles.nicknameContainer}>
               <Text style={styles.nicknameLabel}>닉네임</Text>
               <TextInput
@@ -368,11 +429,18 @@ export default function Onboarding_3() {
             {submitting ? (
               <ActivityIndicator color={COLORS.BUTTON_GREEN_TEXT} />
             ) : (
-              <Text style={styles.nextButtonText}>다음</Text>
+              <Text style={styles.nextButtonText}>{isEditMode ? '저장' : '다음'}</Text>
             )}
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <UserAvatarPickerModal
+        visible={avatarPickerVisible}
+        selectedId={avatarId}
+        onSelect={setAvatarId}
+        onClose={() => setAvatarPickerVisible(false)}
+      />
     </SafeAreaView>
   );
 }

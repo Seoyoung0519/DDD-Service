@@ -17,12 +17,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getRecentBooks, getSearchSuggestions, type RecentBook } from '../src/api/search';
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
+import { NotificationBellButton } from '@/src/components/header/NotificationBellButton';
+import { ProfileHeaderButton } from '@/src/components/header/ProfileHeaderButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
-const BELL_ICON = require('../assets/images/drawer/bell.png');
 const BOOK1_COVER = require('../assets/images/drawer/book1.png');
 const BOOK2_COVER = require('../assets/images/drawer/book2.png');
 
@@ -224,18 +226,9 @@ export default function SearchScreen_1() {
           <Text style={styles.logoText}>대독단</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="person-circle-outline" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <ExpoImage source={BELL_ICON} style={styles.bellIcon} contentFit="contain" />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>10+</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <ProfileHeaderButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
+          <NotificationBellButton style={styles.headerIconButton} />
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 

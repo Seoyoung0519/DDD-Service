@@ -1,4 +1,4 @@
-import { fetchBookshelf } from '@/src/api/reading';
+import { fetchPlannedBooksForReadingSession } from '@/src/api/reading';
 import type { BookshelfItem } from '@/src/types/reading';
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -18,6 +18,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -110,8 +111,8 @@ export default function ReadingSession_3() {
           }
         }
 
-        // API에서 책장 목록 가져오기
-        const books = await fetchBookshelf();
+        // 독서 세션 전용: 담아둔 책(planned)만 — 진행 중 책은 RS2에서 선택
+        const books = await fetchPlannedBooksForReadingSession();
         setBookshelfBooks(books);
       } catch (error: any) {
         console.error('[RS3] 목록 불러오기 실패');
@@ -130,16 +131,14 @@ export default function ReadingSession_3() {
   };
 
   const handleNext = () => {
-    if (selectedBook) {
-      // replace — 전환 중 뒤에 RS3가 비치지 않도록 스택에서 제거
-      router.replace({
-        pathname: '/ReadingSession_4',
-        params: {
-          selectedBook: JSON.stringify(selectedBook),
-          bookPickSource: 'ReadingSession_3',
-        },
-      });
-    }
+    if (!selectedBook) return;
+    router.replace({
+      pathname: '/ReadingSession_4',
+      params: {
+        selectedBook: JSON.stringify(selectedBook),
+        bookPickSource: 'ReadingSession_3',
+      },
+    });
   };
 
   const handleSelectBook = (book: BookshelfItem) => {
@@ -241,9 +240,7 @@ export default function ReadingSession_3() {
               <Text style={styles.badgeText}>0</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 

@@ -3,6 +3,10 @@ import {
   skipReadingTest,
   startReadingTest,
 } from '@/src/services/onboarding/onboardingService';
+import { isOnboardingAlreadyCompleteError } from '@/src/services/onboarding/onboardingProfileEditSave';
+import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
+import { OnboardingReadingTestGateLoading } from '@/src/components/onboarding/OnboardingReadingTestGateLoading';
+import { useOnboardingReadingTestGate } from '@/src/utils/onboardingProfileEdit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -21,9 +25,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// 이미지 경로
-const BUS_ICON = require('../assets/images/onboarding/daedokdan-bus.png');
 
 // 색상 상수
 const COLORS = {
@@ -67,8 +68,17 @@ const FONTS = {
 
 export default function Onboarding_5() {
   const router = useRouter();
+  const readingTestGate = useOnboardingReadingTestGate(router);
   const [starting, setStarting] = useState(false);
   const [skipping, setSkipping] = useState(false);
+
+  if (readingTestGate !== 'allowed') {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <OnboardingReadingTestGateLoading />
+      </SafeAreaView>
+    );
+  }
 
   const handlePrevious = () => {
     router.back();
@@ -82,6 +92,12 @@ export default function Onboarding_5() {
       await AsyncStorage.removeItem(ONBOARDING_READING_TEST_STORAGE_KEY);
       router.replace('/Onboarding_8');
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (isOnboardingAlreadyCompleteError(msg)) {
+        await AsyncStorage.removeItem(ONBOARDING_READING_TEST_STORAGE_KEY);
+        router.replace('/Onboarding_8');
+        return;
+      }
       Alert.alert(
         '오류',
         e instanceof Error ? e.message : '건너뛰기 요청에 실패했습니다. 다시 시도해주세요.',
@@ -111,12 +127,7 @@ export default function Onboarding_5() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* 상단 앱바 */}
-      <View style={styles.appBar}>
-        <View style={styles.appBarLeft}>
-          <Image source={BUS_ICON} style={styles.busIcon} resizeMode="contain" />
-          <Text style={styles.appTitle}>대독단</Text>
-        </View>
-      </View>
+      <OnboardingAppBar />
 
       {/* 회색 바 */}
       <View style={styles.divider} />

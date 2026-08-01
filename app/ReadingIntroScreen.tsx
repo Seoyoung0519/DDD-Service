@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -13,12 +12,14 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
+import { NotificationBellButton } from '@/src/components/header/NotificationBellButton';
+import { ProfileHeaderButton } from '@/src/components/header/ProfileHeaderButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
 const BUS_LOGO = require('../assets/images/drawer/bus.png'); // 상단 헤더용
-const BELL_ICON_HEADER = require('../assets/images/drawer/bell.png'); // 상단 헤더용
 const BUS_ICON = require('../assets/images/reading_session/버스.png');
 const SUBWAY_ICON = require('../assets/images/reading_session/지하철.png');
 const LOCATION_ICON = require('../assets/images/reading_session/위치.png');
@@ -349,18 +350,9 @@ export default function ReadingIntroScreen() {
           <Text style={styles.logoText}>대독단</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="person-circle-outline" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <ExpoImage source={BELL_ICON_HEADER} style={styles.bellIcon} contentFit="contain" />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>0</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <ProfileHeaderButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
+          <NotificationBellButton style={styles.headerIconButton} />
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 

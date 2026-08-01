@@ -1,479 +1,83 @@
-// app/index.tsx
+// app/index.tsx — 앱 실행 후 첫 화면 (스플래시)
 
-import React, { useCallback } from 'react';
+import { useRouter, type Href } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 
-import {
-  ActivityIndicator,
+import { AppLaunchSplash } from '@/src/components/splash/AppLaunchSplash';
+import { getAccessToken, clearAccessToken } from '@/src/services/auth/authService';
+import { fetchBootstrapSessionAndOnboarding } from '@/src/services/onboarding/onboardingService';
+import { isOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
+import { resolveAgreementsGateRoute } from '@/src/services/settings/agreementGate';
+import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
 
-  Alert,
+const SPLASH_MIN_MS = 2000;
 
-  Image,
+async function resolveInitialRoute(): Promise<Href> {
+  const token = await getAccessToken();
+  if (!token) return '/intro';
 
-  Platform,
+  try {
+    const { hasValidSession, onboarding } = await fetchBootstrapSessionAndOnboarding();
+    if (!hasValidSession) {
+      await clearAccessToken();
+      return '/intro';
+    }
 
-  StyleSheet,
+    if (await isOnboardingSkipped()) {
+      void initializePushNotifications();
+      return '/DaedokPick';
+    }
 
-  Text,
+    if (onboarding?.isOnboarded) {
+      void initializePushNotifications();
+      return '/Drawer_1';
+    }
 
-  TextInput,
+    if (onboarding) {
+      const agreementsRoute = await resolveAgreementsGateRoute('onboarding');
+      if (agreementsRoute) return agreementsRoute;
+      return '/onboarding';
+    }
 
-  TouchableOpacity,
+    const agreementsRoute = await resolveAgreementsGateRoute('onboarding');
+    if (agreementsRoute) return agreementsRoute;
+  } catch (e) {
+    console.warn('[SPLASH] 세션 복원 실패, 로그인으로 이동:', e);
+    await clearAccessToken();
+  }
 
-  View,
-} from 'react-native';
+  return '/intro';
+}
 
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-
-import {
-  GoogleLoginResult,
-  useGoogleLogin,
-} from '@/src/features/auth/useGoogleLogin';
-import {
-  fetchBootstrapSessionAndOnboarding,
-  fetchOnboardingState,
-} from '@/src/services/onboarding/onboardingService';
-
-// 로고 이미지
-const APP_LOGO = require('../assets/images/login/android_app_logo.png');
-const GOOGLE_LOGO = require('../assets/images/login/google_app_logo.webp');
-const KAKAO_LOGO = require('../assets/images/login/kakao_app_logo.webp');
-
-export default function LoginScreen() {
-
+export default function SplashRoute() {
   const router = useRouter();
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
-  // 앱 시작 시 세션 + 온보딩 상태 체크 (/me 와 온보딩 state 병렬 요청)
   useEffect(() => {
-    const checkInitialRoute = async () => {
-      try {
-        const { hasValidSession, onboarding: onboardingState } =
-          await fetchBootstrapSessionAndOnboarding();
-        if (!hasValidSession) {
-          setIsCheckingSession(false);
-          return;
-        }
+    let cancelled = false;
 
-        if (onboardingState && onboardingState.isOnboarded) {
-          console.log('[LOGIN] 기존 세션 + 온보딩 완료, 대독단 메인(Drawer_1)으로 이동');
-          router.replace('/Drawer_1');
-        } else if (onboardingState) {
-          console.log('[LOGIN] 기존 세션, 온보딩 필요, 온보딩으로 이동');
-          router.replace('/onboarding');
-        } else {
-          // 온보딩 상태 조회 실패(null) 시에는 로그인 화면에 머문다.
-          // (잘못된 자동 진입으로 대독단 메인이 뜨는 문제 방지)
-          console.warn('[LOGIN] 온보딩 상태 조회 실패(null), 로그인 화면 유지');
-          return;
-        }
-      } catch (e) {
-        // 실패 시에는 로그인 화면을 보여준다
+    const bootstrap = async () => {
+      try {
+        const [route] = await Promise.all([
+          resolveInitialRoute(),
+          new Promise<void>((resolve) => setTimeout(resolve, SPLASH_MIN_MS)),
+        ]);
+
+        if (cancelled) return;
+        router.replace(route);
       } finally {
-        setIsCheckingSession(false);
+        if (!cancelled) {
+          await SplashScreen.hideAsync();
+        }
       }
     };
 
-    checkInitialRoute();
+    void bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
-  const onLoginSuccess = useCallback(
-    async (result: GoogleLoginResult) => {
-      console.log('[LOGIN] ✅ Login success');
-
-      try {
-        const onboardingState = await fetchOnboardingState();
-
-        if (onboardingState && onboardingState.isOnboarded) {
-          console.log('[LOGIN] 온보딩 완료, 대독단 메인(Drawer_1)으로 이동');
-          router.replace('/Drawer_1');
-        } else {
-          console.log('[LOGIN] 온보딩 필요, 온보딩으로 이동');
-          router.replace('/onboarding');
-        }
-      } catch (e) {
-        console.warn('[LOGIN] 온보딩 상태 조회 실패, 온보딩으로 이동:', e);
-        router.replace('/onboarding');
-      }
-    },
-    [router],
-  );
-
-  const { isLoading, login, request } = useGoogleLogin(onLoginSuccess);
-
-  const handleKakao = () => {
-
-    Alert.alert('준비 중', '카카오 로그인은 나중에 연동할 예정입니다.');
-
-  };
-
-  // 세션 체크 중이면 로딩 표시
-  if (isCheckingSession) {
-    return (
-      <View style={styles.root}>
-        <View style={styles.logoContainer}>
-          <Image source={APP_LOGO} style={styles.logoImage} resizeMode="contain" />
-        </View>
-        <View style={styles.card}>
-          <ActivityIndicator size="large" color="#2D4F2F" />
-        </View>
-      </View>
-    );
-  }
-
-  return (
-
-    <View style={styles.root}>
-
-      {/* 상단 로고 영역 */}
-
-      <View style={styles.logoContainer}>
-
-        <Image source={APP_LOGO} style={styles.logoImage} resizeMode="contain" />
-
-      </View>
-
-      {/* 하단 카드 영역 */}
-
-      <View style={styles.card}>
-
-        {/* 이메일 / 폰 입력 */}
-
-        <TextInput
-
-          placeholder="Email or Phone number"
-
-          placeholderTextColor="#A0A0A0"
-
-          style={styles.input}
-
-          keyboardType="email-address"
-
-          autoCapitalize="none"
-
-        />
-
-        {/* CONTINUE 버튼 (아직 동작은 없음) */}
-
-        <TouchableOpacity
-
-          style={styles.continueButton}
-
-          activeOpacity={0.8}
-
-          onPress={() => Alert.alert('알림', '이메일/전화 로그인은 추후 구현 예정입니다.')}
-
-        >
-
-          <Text style={styles.continueText}>CONTINUE</Text>
-
-        </TouchableOpacity>
-
-        {/* 구분선 텍스트 */}
-
-        <View style={styles.orContainer}>
-
-          <View style={styles.orLine} />
-
-          <Text style={styles.orText}>or use</Text>
-
-          <View style={styles.orLine} />
-
-        </View>
-
-        {/* Google 로그인 버튼 */}
-
-        <TouchableOpacity
-
-          style={styles.googleButton}
-
-          activeOpacity={0.8}
-
-          onPress={login}
-
-          disabled={isLoading || (Platform.OS === 'web' && !request)}
-
-        >
-
-          <View style={styles.socialContent}>
-
-            <Image source={GOOGLE_LOGO} style={styles.socialIcon} resizeMode="contain" />
-
-            <Text style={styles.googleText}>Sign in with Google</Text>
-
-          </View>
-
-        </TouchableOpacity>
-
-        {/* Kakao 로그인 버튼 */}
-
-        <TouchableOpacity
-
-          style={styles.kakaoButton}
-
-          activeOpacity={0.8}
-
-          onPress={handleKakao}
-
-        >
-
-          <View style={styles.socialContent}>
-
-            <Image source={KAKAO_LOGO} style={styles.socialIcon} resizeMode="contain" />
-
-            <Text style={styles.kakaoText}>Sign in with Kakao</Text>
-
-          </View>
-
-        </TouchableOpacity>
-
-        {/* 로딩 표시 */}
-
-        {isLoading && (
-
-          <View style={styles.loadingOverlay}>
-
-            <ActivityIndicator size="large" color="#2D4F2F" />
-
-          </View>
-
-        )}
-
-      </View>
-
-    </View>
-
-  );
-
+  return <AppLaunchSplash />;
 }
-
-const styles = StyleSheet.create({
-
-  root: {
-
-    flex: 1,
-
-    backgroundColor: '#F0EEEB', // 배경색
-
-    alignItems: 'center',
-
-    justifyContent: 'flex-start',
-
-  },
-
-  logoContainer: {
-
-    flex: 1.2,
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-    width: '100%',
-
-    paddingTop: 50,
-
-  },
-
-  logoImage: {
-
-    width: '90%',
-
-    height: '90%',
-
-  },
-
-  card: {
-
-    flex: 1,
-
-    width: '100%',
-
-    paddingHorizontal: 24,
-
-    paddingBottom: 32,
-
-    paddingTop: 45,
-
-    backgroundColor: '#F0EEEB', // 배경색
-
-  },
-
-  input: {
-
-    height: 48,
-
-    borderRadius: 10,
-
-    borderWidth: 1,
-
-    borderColor: '#D2D2D2',
-
-    paddingHorizontal: 16,
-
-    fontSize: 14,
-
-    backgroundColor: '#FFFFFF',
-
-  },
-
-  continueButton: {
-
-    marginTop: 13,
-
-    height: 45,
-
-    borderRadius: 26,
-
-    backgroundColor: '#264D2C', // 짙은 초록
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-  },
-
-  continueText: {
-
-    color: '#FFFFFF',
-
-    fontSize: 15,
-
-    fontWeight: '600',
-
-    letterSpacing: 0.5,
-
-  },
-
-  orContainer: {
-
-    marginTop: 24,
-
-    marginBottom: 16,
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-  },
-
-  orLine: {
-
-    flex: 1,
-
-    height: 1,
-
-    backgroundColor: '#D0D0D0',
-
-  },
-
-  orText: {
-
-    marginHorizontal: 8,
-
-    fontSize: 12,
-
-    color: '#999999',
-
-  },
-
-  googleButton: {
-
-    height: 45,
-
-    borderRadius: 25,
-
-    backgroundColor: '#FFFFFF',
-
-    borderWidth: 1,
-
-    borderColor: '#E0E0E0',
-
-    justifyContent: 'center',
-
-    marginBottom: 10,
-
-  },
-
-  kakaoButton: {
-
-    height: 45,
-
-    borderRadius: 25,
-
-    backgroundColor: '#FEE500', // 카카오 노랑
-
-    justifyContent: 'center',
-
-  },
-
-  socialContent: {
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-    width: '100%',
-
-    position: 'relative',
-
-  },
-
-  socialIcon: {
-
-    width: 24,
-
-    height: 24,
-
-    position: 'absolute',
-
-    left: 18,
-
-  },
-
-  textContainer: {
-
-    flex: 1,
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-  },
-
-  googleText: {
-
-    fontSize: 15,
-
-    fontWeight: '500',
-
-    textAlign: 'center',
-
-  },
-
-  kakaoText: {
-
-    fontSize: 15,
-
-    fontWeight: '500',
-
-    textAlign: 'center',
-
-  },
-
-  loadingOverlay: {
-
-    position: 'absolute',
-
-    top: '35%',
-
-    alignSelf: 'center',
-
-  },
-
-});
-

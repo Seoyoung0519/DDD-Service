@@ -1,26 +1,34 @@
-import { Ionicons } from '@expo/vector-icons';
+﻿import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
+import { NotificationBellButton } from '@/src/components/header/NotificationBellButton';
+import { ProfileHeaderButton } from '@/src/components/header/ProfileHeaderButton';
+import { ReadingStaminaSection } from '@/src/components/reading-stamina/ReadingStaminaSection';
+import { PICK_CATEGORY_TO_API } from '@/src/constants/categoryBrowse';
+import { fetchBanners, type Banner } from '@/src/api/banners';
+import { fetchEvents, type DaedokEventItem } from '@/src/api/events';
+import { fetchPicks, type DaedokPickItem } from '@/src/api/picks';
 import {
-  fetchBookPickVideos,
-  type BookPickVideoItem
+    fetchBookPickVideos,
+    type BookPickVideoItem
 } from '../src/api/bookPick';
 import { fetchRankingBooks } from '../src/api/ranking';
 import { hydrateBookForDetailViaSearch } from '../src/api/search';
@@ -29,30 +37,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
-const BELL_ICON = require('../assets/images/drawer/bell.png');
-
-/** 상단 홍보 배너 — 이미지 + 캡션 + 링크 */
-type PromoBannerItem = {
-  id: string;
-  image: number;
-  caption: string;
-  url: string;
-};
-
-const PROMO_BANNERS: PromoBannerItem[] = [
-  {
-    id: 'sibf-2026',
-    image: require('../assets/images/daedokPick/banner/서울국제도서전_배너.png'),
-    caption: '2026 국제도서전\n놓치지말기',
-    url: 'https://sibf.kr/page/11',
-  },
-  {
-    id: 'literature-forum-2026',
-    image: require('../assets/images/daedokPick/banner/2026 한국문학 비평포럼_배너.png'),
-    caption: '2026 한국문학 비평포럼이 열린대!',
-    url: 'https://www.readinggroup.or.kr/board/culture_view.php?m=read&b=B_1_6&bn=1454',
-  },
-];
 
 const BANNER_AUTO_MS = 4000;
 const BANNER_SIDE_MARGIN = 17;
@@ -321,7 +305,8 @@ const categories: Category[] = [
   },
 ];
 
-async function openBannerUrl(url: string) {
+async function openBannerUrl(url: string | null) {
+  if (!url) return;
   try {
     await Linking.openURL(url);
   } catch (e) {
@@ -329,12 +314,107 @@ async function openBannerUrl(url: string) {
   }
 }
 
-// 이벤트 배너 — 가로 슬라이드 + 4초 자동 / 일시정지 토글
+type PromoSlide = {
+  id: string;
+  title: string;
+  image_url: string;
+  link_url: string | null;
+  sort_order: number;
+  created_at: string;
+  source: 'banner' | 'event';
+};
+
+function mapBannerToSlide(item: Banner): PromoSlide | null {
+  const image = item.image_url?.trim();
+  if (!image) return null;
+  return {
+    id: `banner-${item.id}`,
+    title: item.title,
+    image_url: image,
+    link_url: item.link_url,
+    sort_order: item.sort_order,
+    created_at: item.created_at,
+    source: 'banner',
+  };
+}
+
+function mapEventToSlide(item: DaedokEventItem, index: number): PromoSlide | null {
+  const image = item.image_url?.trim();
+  if (!image) return null;
+  return {
+    id: `event-${item.id}`,
+    title: item.title,
+    image_url: image,
+    link_url: item.link_url,
+    sort_order: 10_000 + index,
+    created_at: item.starts_at,
+    source: 'event',
+  };
+}
+
+// 이벤트 배너 — 배너 + 진행 중 이벤트를 같은 슬라이드로 표시
 function EventBanner() {
+  const [banners, setBanners] = useState<PromoSlide[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const listRef = useRef<FlatList<PromoBannerItem>>(null);
-  const bannerCount = PROMO_BANNERS.length;
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const listRef = useRef<FlatList<PromoSlide>>(null);
+  const bannerCount = banners.length;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBanners = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const [bannerItems, eventItems] = await Promise.all([
+          fetchBanners().catch((error) => {
+            console.warn('[EventBanner] banners failed:', error);
+            return [] as Banner[];
+          }),
+          fetchEvents().catch((error) => {
+            console.warn('[EventBanner] events failed:', error);
+            return [] as DaedokEventItem[];
+          }),
+        ]);
+        if (cancelled) return;
+
+        const bannerSlides = bannerItems
+          .map(mapBannerToSlide)
+          .filter((item): item is PromoSlide => item != null)
+          .sort(
+            (left, right) =>
+              left.sort_order - right.sort_order ||
+              new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+          );
+
+        const eventSlides = eventItems
+          .filter((item) => Boolean(item.image_url?.trim()))
+          .map(mapEventToSlide)
+          .filter((item): item is PromoSlide => item != null);
+
+        setBanners([...bannerSlides, ...eventSlides]);
+        setCurrentIndex(0);
+        if (bannerSlides.length === 0 && eventSlides.length === 0 && bannerItems.length === 0) {
+          // both empty — leave empty state; only show error if both APIs truly failed later
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setBanners([]);
+        setLoadError(error instanceof Error ? error.message : '배너를 불러오지 못했습니다.');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    void loadBanners();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
   useEffect(() => {
     if (isPaused || bannerCount <= 1) return;
@@ -358,67 +438,221 @@ function EventBanner() {
     if (idx >= 0 && idx < bannerCount) setCurrentIndex(idx);
   };
 
-  const currentBanner = PROMO_BANNERS[currentIndex] ?? PROMO_BANNERS[0];
+  const currentBanner = banners[currentIndex] ?? banners[0];
 
   return (
     <View style={styles.eventBanner}>
-      <FlatList
-        ref={listRef}
-        data={PROMO_BANNERS}
-        keyExtractor={(_, index) => `banner-${index}`}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        nestedScrollEnabled
-        style={styles.eventBannerList}
-        onMomentumScrollEnd={onScrollEnd}
-        getItemLayout={(_, index) => ({
-          length: BANNER_WIDTH,
-          offset: BANNER_WIDTH * index,
-          index,
-        })}
-        onScrollToIndexFailed={(info) => {
-          setTimeout(() => {
-            listRef.current?.scrollToIndex({ index: info.index, animated: true });
-          }, 120);
-        }}
-        renderItem={({ item }) => (
+      {isLoading ? (
+        <View style={styles.bannerState}>
+          <ActivityIndicator size="large" color="#2C8C55" />
+          <Text style={styles.bannerStateText}>배너를 불러오는 중입니다.</Text>
+        </View>
+      ) : loadError ? (
+        <View style={styles.bannerState}>
+          <Text style={styles.bannerStateText}>{loadError}</Text>
           <TouchableOpacity
-            style={styles.eventBannerSlide}
-            activeOpacity={0.92}
-            onPress={() => openBannerUrl(item.url)}>
-            <ExpoImage source={item.image} style={styles.eventBannerImage} contentFit="cover" />
+            style={styles.bannerRetryButton}
+            onPress={() => setReloadKey((value) => value + 1)}>
+            <Text style={styles.bannerRetryText}>다시 시도</Text>
           </TouchableOpacity>
-        )}
-      />
+        </View>
+      ) : bannerCount === 0 ? (
+        <View style={styles.bannerState}>
+          <Text style={styles.bannerStateText}>현재 노출 중인 배너가 없습니다.</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={listRef}
+          data={banners}
+          keyExtractor={(item) => item.id}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
+          style={styles.eventBannerList}
+          onMomentumScrollEnd={onScrollEnd}
+          getItemLayout={(_, index) => ({
+            length: BANNER_WIDTH,
+            offset: BANNER_WIDTH * index,
+            index,
+          })}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              listRef.current?.scrollToIndex({ index: info.index, animated: true });
+            }, 120);
+          }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.eventBannerSlide}
+              activeOpacity={item.link_url ? 0.92 : 1}
+              disabled={!item.link_url}
+              onPress={() => openBannerUrl(item.link_url)}>
+              <ExpoImage
+                source={{ uri: item.image_url }}
+                style={styles.eventBannerImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            </TouchableOpacity>
+          )}
+        />
+      )}
 
-      <View style={styles.eventBannerControlsOverlay} pointerEvents="box-none">
-        <View style={styles.eventBannerControls}>
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={togglePause}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel={isPaused ? '배너 자동 넘김 재생' : '배너 자동 넘김 일시정지'}
-            accessibilityRole="button">
-            <Ionicons name={isPaused ? 'play' : 'pause'} size={16} color="#FFFFFF" />
-          </TouchableOpacity>
-          <View style={styles.slideIndicator}>
-            <Text style={styles.slideIndicatorText}>
-              {currentIndex + 1}/{bannerCount}
-            </Text>
+      {currentBanner ? (
+        <>
+          <View style={styles.eventBannerControlsOverlay} pointerEvents="box-none">
+            <View style={styles.eventBannerControls}>
+              <TouchableOpacity
+                style={styles.playButton}
+                onPress={togglePause}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={isPaused ? '배너 자동 넘김 재생' : '배너 자동 넘김 일시정지'}
+                accessibilityRole="button">
+                <Ionicons name={isPaused ? 'play' : 'pause'} size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={styles.slideIndicator}>
+                <Text style={styles.slideIndicatorText}>
+                  {currentIndex + 1}/{bannerCount}
+                </Text>
+              </View>
+            </View>
           </View>
+
+          <View style={styles.bannerCaptionLayer} pointerEvents="box-none">
+            <TouchableOpacity
+              activeOpacity={currentBanner.link_url ? 0.92 : 1}
+              disabled={!currentBanner.link_url}
+              onPress={() => openBannerUrl(currentBanner.link_url)}
+              style={styles.bannerCaptionTouch}>
+              <Text style={styles.bannerCaption}>{currentBanner.title}</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      ) : null}
+    </View>
+  );
+}
+
+/** 메인 배너 바로 아래 — GET /api/picks */
+function WeeklyPickSection() {
+  const router = useRouter();
+  const [picks, setPicks] = useState<DaedokPickItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const items = await fetchPicks();
+        if (cancelled) return;
+        setPicks(
+          [...items].sort(
+            (a, b) =>
+              a.sort_order - b.sort_order ||
+              String(a.title).localeCompare(String(b.title), 'ko'),
+          ),
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('[WeeklyPickSection] fetchPicks failed:', error);
+          setPicks([]);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openPick = async (pick: DaedokPickItem) => {
+    if (openingId) return;
+    const query = pick.title?.trim() || pick.book_isbn?.trim();
+    if (!query) {
+      Alert.alert('도서 정보 없음', '이 Pick에 연결된 도서 정보가 없습니다.');
+      return;
+    }
+    try {
+      setOpeningId(pick.id);
+      const seedId = pick.book_isbn?.trim() || pick.id;
+      const aladinId = await hydrateBookForDetailViaSearch(seedId, query);
+      router.push({
+        pathname: '/BookDetailScreen',
+        params: { bookId: aladinId, skipRecentBook: 'true' },
+      });
+    } catch (error) {
+      Alert.alert(
+        '도서 상세 열기 실패',
+        error instanceof Error ? error.message : '잠시 후 다시 시도해 주세요.',
+      );
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
+  if (!isLoading && picks.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.weeklyPickSection}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderLeft}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitleBlack}>이번주 </Text>
+            <Text style={styles.sectionTitleGreen}>대독PICK</Text>
+          </View>
+          <Text style={styles.sectionSubtitle}>대독단이 엄선한 이번 주 추천 도서예요.</Text>
         </View>
       </View>
 
-      {/* 회색 하단바와 겹치되, 글자는 더 앞 레이어(zIndex)에 표시 */}
-      <View style={styles.bannerCaptionLayer} pointerEvents="box-none">
-        <TouchableOpacity
-          activeOpacity={0.92}
-          onPress={() => openBannerUrl(currentBanner.url)}
-          style={styles.bannerCaptionTouch}>
-          <Text style={styles.bannerCaption}>{currentBanner.caption}</Text>
-        </TouchableOpacity>
-      </View>
+      {isLoading ? (
+        <View style={styles.weeklyPickLoading}>
+          <ActivityIndicator color={COLORS.PRIMARY} />
+        </View>
+      ) : (
+        <FlatList
+          data={picks}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
+          contentContainerStyle={styles.weeklyPickList}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.weeklyPickCard}
+              activeOpacity={0.85}
+              disabled={openingId === item.id}
+              onPress={() => void openPick(item)}>
+              {item.cover_image_url ? (
+                <ExpoImage
+                  source={{ uri: item.cover_image_url }}
+                  style={styles.weeklyPickCover}
+                  contentFit="contain"
+                />
+              ) : (
+                <View style={[styles.weeklyPickCover, styles.weeklyPickCoverPlaceholder]}>
+                  <Ionicons name="book-outline" size={28} color={COLORS.SUBTITLE} />
+                </View>
+              )}
+              <View style={styles.weeklyPickTextBlock}>
+                <Text style={styles.weeklyPickTitle} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                {item.description ? (
+                  <Text style={styles.weeklyPickDescription} numberOfLines={3}>
+                    {item.description}
+                  </Text>
+                ) : null}
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -772,364 +1006,6 @@ function PickVideoSection() {
   );
 }
 
-// BookItem 인터페이스
-interface BookItem {
-  id: string;
-  title: string;
-  author: string;
-  coverSource: any;
-  pageCount: number;
-}
-
-// ReadingStaminaSection Props
-interface ReadingStaminaSectionProps {
-  books?: BookItem[];
-  onChangeSelectedBook?: (book: BookItem) => void;
-}
-
-// 독서 체력 섹션 컴포넌트
-function ReadingStaminaSection({ books: propsBooks, onChangeSelectedBook }: ReadingStaminaSectionProps = {}) {
-  const ITEM_WIDTH = SCREEN_WIDTH * 0.2;
-  const ITEM_SPACING = 8;
-  const ITEM_HEIGHT = 220;
-
-  const [selectedRange, setSelectedRange] = useState<'100' | '200' | '400' | '400plus'>('100');
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const flatListRef = useRef<FlatList>(null);
-  const [initialScrollIndex, setInitialScrollIndex] = useState(0);
-
-  // 샘플 책 데이터 (props가 없을 경우 사용)
-  // 각 쪽수 범위별로 여러 책을 포함
-  const sampleBooks: BookItem[] = [
-    // ≤ 100쪽 범위
-    { id: '1', title: '멍청해지기전에읽는 뇌과학', author: '이인아', coverSource: RANKING_BOOKS.다정한사람이이긴다, pageCount: 80 },
-    { id: '2', title: '어른 수업', author: '작가명', coverSource: RANKING_BOOKS.편안함의습격, pageCount: 95 },
-    { id: '3', title: '짧은 에세이 모음', author: '에세이스트', coverSource: RANKING_BOOKS.혼모과, pageCount: 70 },
-    { id: '4', title: '단편 소설집', author: '소설가', coverSource: RANKING_BOOKS.가공범, pageCount: 85 },
-    { id: '5', title: '일상의 기록', author: '작가명', coverSource: RANKING_BOOKS.절창, pageCount: 60 },
-    { id: '6', title: '생각의 단편', author: '철학자', coverSource: RANKING_BOOKS.키메라의땅, pageCount: 90 },
-    
-    // 101~200쪽 범위
-    { id: '7', title: '주영도', author: '억새, 바람흘눕히다.', coverSource: RANKING_BOOKS.혼모과, pageCount: 120 },
-    { id: '8', title: '녹색 절벽의 신자들', author: '조계은', coverSource: RANKING_BOOKS.호의에대하여, pageCount: 150 },
-    { id: '9', title: '트렌드 코리아', author: '작가명', coverSource: RANKING_BOOKS.트렌드코리아, pageCount: 110 },
-    { id: '10', title: '중편 소설 모음', author: '소설가', coverSource: RANKING_BOOKS.편안함의습격, pageCount: 180 },
-    { id: '11', title: '인생의 교훈', author: '작가명', coverSource: RANKING_BOOKS.다정한사람이이긴다, pageCount: 140 },
-    { id: '12', title: '에세이집', author: '에세이스트', coverSource: RANKING_BOOKS.가공범, pageCount: 160 },
-    { id: '13', title: '자기계발의 길', author: '멘토', coverSource: RANKING_BOOKS.절창, pageCount: 130 },
-    { id: '14', title: '철학 에세이', author: '철학자', coverSource: RANKING_BOOKS.키메라의땅, pageCount: 170 },
-    
-    // 201~400쪽 범위
-    { id: '15', title: '장편 소설 1', author: '소설가', coverSource: RANKING_BOOKS.혼모과, pageCount: 250 },
-    { id: '16', title: '역사 논픽션', author: '역사가', coverSource: RANKING_BOOKS.호의에대하여, pageCount: 300 },
-    { id: '17', title: '과학 교양서', author: '과학자', coverSource: RANKING_BOOKS.트렌드코리아, pageCount: 280 },
-    { id: '18', title: '경제 경영서', author: '경제학자', coverSource: RANKING_BOOKS.편안함의습격, pageCount: 320 },
-    { id: '19', title: '인문학 강의', author: '인문학자', coverSource: RANKING_BOOKS.다정한사람이이긴다, pageCount: 350 },
-    { id: '20', title: '사회 비평서', author: '사회학자', coverSource: RANKING_BOOKS.가공범, pageCount: 240 },
-    { id: '21', title: '문학 평론집', author: '평론가', coverSource: RANKING_BOOKS.절창, pageCount: 270 },
-    { id: '22', title: '철학 입문서', author: '철학자', coverSource: RANKING_BOOKS.키메라의땅, pageCount: 310 },
-    { id: '23', title: '문화 분석서', author: '문화비평가', coverSource: RANKING_BOOKS.혼모과, pageCount: 290 },
-    { id: '24', title: '심리학 개론', author: '심리학자', coverSource: RANKING_BOOKS.호의에대하여, pageCount: 360 },
-    
-    // > 400쪽 범위
-    { id: '25', title: '대작 소설 1', author: '소설가', coverSource: RANKING_BOOKS.트렌드코리아, pageCount: 450 },
-    { id: '26', title: '역사 대작', author: '역사가', coverSource: RANKING_BOOKS.편안함의습격, pageCount: 520 },
-    { id: '27', title: '철학 대작', author: '철학자', coverSource: RANKING_BOOKS.다정한사람이이긴다, pageCount: 480 },
-    { id: '28', title: '문학 대작', author: '소설가', coverSource: RANKING_BOOKS.가공범, pageCount: 600 },
-    { id: '29', title: '과학 대작', author: '과학자', coverSource: RANKING_BOOKS.절창, pageCount: 550 },
-    { id: '30', title: '인문학 대작', author: '인문학자', coverSource: RANKING_BOOKS.키메라의땅, pageCount: 500 },
-    { id: '31', title: '시리즈 소설 1', author: '소설가', coverSource: RANKING_BOOKS.혼모과, pageCount: 480 },
-    { id: '32', title: '전기 대작', author: '전기작가', coverSource: RANKING_BOOKS.호의에대하여, pageCount: 650 },
-  ];
-
-  const books = propsBooks || sampleBooks;
-
-  // 쪽수 범위에 따라 책 필터링 (baseBooks)
-  const baseBooks = books.filter((book) => {
-    switch (selectedRange) {
-      case '100':
-        return book.pageCount <= 100;
-      case '200':
-        return book.pageCount > 100 && book.pageCount <= 200;
-      case '400':
-        return book.pageCount > 200 && book.pageCount <= 400;
-      case '400plus':
-        return book.pageCount > 400;
-      default:
-        return true;
-    }
-  });
-
-  // 무한 캐러셀을 위한 가상 배열 설정
-  const DATA_LENGTH = baseBooks.length;
-  const VIRTUAL_LENGTH = DATA_LENGTH > 0 ? DATA_LENGTH * 1000 : 0;
-  const INITIAL_INDEX = DATA_LENGTH > 0 ? Math.floor(VIRTUAL_LENGTH / 2) : 0;
-
-  // 가상 인덱스에서 실제 데이터를 가져오는 함수
-  const getItem = (virtualIndex: number): BookItem | null => {
-    if (DATA_LENGTH === 0) return null;
-    const realIndex = virtualIndex % DATA_LENGTH;
-    return baseBooks[realIndex];
-  };
-
-  // 가상 배열 생성
-  const virtualBooks = Array.from({ length: VIRTUAL_LENGTH }, (_, i) => ({
-    ...getItem(i)!,
-    id: `virtual-${i}`,
-  }));
-
-  // filteredBooks는 가상 배열 (하위 호환성을 위해)
-  const filteredBooks = virtualBooks;
-
-  // 초기 스크롤 인덱스 설정
-  useEffect(() => {
-    if (DATA_LENGTH > 0 && initialScrollIndex === 0) {
-      setInitialScrollIndex(INITIAL_INDEX);
-    }
-  }, [DATA_LENGTH]);
-
-  // 쪽수 범위 설명 문구
-  const getRangeDescription = () => {
-    switch (selectedRange) {
-      case '100':
-        return '짧은 시간에 집중해서 읽고 싶을 때 추천해요. (에세이, 단편집, 단편소설)';
-      case '200':
-        return '하루 종일 읽기 좋은 분량이에요. (중편소설, 에세이집)';
-      case '400':
-        return '주말에 몰아서 읽기 좋은 책들이에요. (장편소설, 논픽션)';
-      case '400plus':
-        return '여유롭게 천천히 읽어보세요. (대작, 시리즈)';
-      default:
-        return '';
-    }
-  };
-
-  // 필터 변경 핸들러
-  const handleRangeChange = (range: '100' | '200' | '400' | '400plus') => {
-    setSelectedRange(range);
-    // scrollX 애니메이션 값 리셋
-    scrollX.setValue(0);
-    // 새로운 초기 인덱스 계산
-    const newDataLength = books.filter((book) => {
-      switch (range) {
-        case '100':
-          return book.pageCount <= 100;
-        case '200':
-          return book.pageCount > 100 && book.pageCount <= 200;
-        case '400':
-          return book.pageCount > 200 && book.pageCount <= 400;
-        case '400plus':
-          return book.pageCount > 400;
-        default:
-          return true;
-      }
-    }).length;
-    if (newDataLength > 0) {
-      const newVirtualLength = newDataLength * 1000;
-      const newInitialIndex = Math.floor(newVirtualLength / 2);
-      setInitialScrollIndex(newInitialIndex);
-      setSelectedIndex(newInitialIndex);
-      // FlatList를 중간 위치로 스크롤
-      if (flatListRef.current) {
-        setTimeout(() => {
-          flatListRef.current?.scrollToIndex({
-            index: newInitialIndex,
-            animated: false,
-          });
-        }, 100);
-      }
-    }
-  };
-
-  // 스크롤 종료 시 현재 인덱스 계산
-  const handleMomentumScrollEnd = (event: any) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const virtualIndex = Math.round(offsetX / ITEM_WIDTH);
-    setSelectedIndex(virtualIndex);
-    
-    // 실제 인덱스 계산
-    if (DATA_LENGTH > 0) {
-      const realIndex = virtualIndex % DATA_LENGTH;
-      const selectedBook = baseBooks[realIndex];
-      if (selectedBook && onChangeSelectedBook) {
-        onChangeSelectedBook(selectedBook);
-      }
-    }
-  };
-
-  // 책 아이템 렌더링
-  const renderBookItem = ({ item, index }: { item: BookItem; index: number }) => {
-    // 양 옆 2개씩 보이도록 inputRange 확장
-    const inputRange = [
-      (index - 2) * ITEM_WIDTH,
-      (index - 1) * ITEM_WIDTH,
-      index * ITEM_WIDTH,
-      (index + 1) * ITEM_WIDTH,
-      (index + 2) * ITEM_WIDTH,
-    ];
-
-    const scale = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.75, 0.85, 1.1, 0.85, 0.75],
-      extrapolate: 'clamp',
-    });
-
-    const translateY = scrollX.interpolate({
-      inputRange,
-      outputRange: [15, 10, -8, 10, 15],
-      extrapolate: 'clamp',
-    });
-
-    const opacity = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.5, 0.7, 1, 0.7, 0.5],
-      extrapolate: 'clamp',
-    });
-
-    return (
-      <Animated.View
-        style={[
-          styles.bookCarouselItem,
-          {
-            width: ITEM_WIDTH,
-            transform: [{ scale }, { translateY }],
-            opacity,
-          },
-        ]}>
-        <ExpoImage source={item.coverSource} style={styles.bookCarouselCover} contentFit="cover" />
-      </Animated.View>
-    );
-  };
-
-  const pageRanges = [
-    { key: '100' as const, label: '≤ 100쪽' },
-    { key: '200' as const, label: '≤ 200쪽' },
-    { key: '400' as const, label: '≤ 400쪽' },
-    { key: '400plus' as const, label: '> 400쪽' },
-  ];
-
-  // 실제 인덱스로 변환하여 선택된 책 가져오기
-  const realIndex = DATA_LENGTH > 0 ? selectedIndex % DATA_LENGTH : 0;
-  const selectedBook = baseBooks[realIndex] || null;
-
-  return (
-    <View style={styles.readingStaminaSection}>
-      {/* 헤더 */}
-      <View style={styles.staminaHeader}>
-        <View style={styles.staminaHeaderLeft}>
-          <Text style={styles.staminaTitle}>오늘의 독서 체력은 몇 쪽?</Text>
-          <Text style={styles.staminaSubtitle}>
-            대독단만의 쪽수 기준 도서 추천으로 완독률을 높여보세요.
-          </Text>
-        </View>
-        <TouchableOpacity onPress={() => {}} activeOpacity={0.7}>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.SUBTITLE} />
-        </TouchableOpacity>
-      </View>
-
-      {/* 페이지 범위 필터 */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.pageRangeContainer}
-        contentContainerStyle={styles.pageRangeContent}>
-        {pageRanges.map((range) => (
-          <TouchableOpacity
-            key={range.key}
-            style={[
-              styles.pageRangeButton,
-              selectedRange === range.key && styles.pageRangeButtonActive,
-            ]}
-            onPress={() => handleRangeChange(range.key)}
-            activeOpacity={0.7}>
-            <Text
-              style={[
-                styles.pageRangeText,
-                selectedRange === range.key && styles.pageRangeTextActive,
-              ]}>
-              {range.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* 설명 문구 및 책 캐러셀 영역 (연한 초록색 배경) */}
-      <View style={styles.descriptionAndCarouselWrapper}>
-        {/* 설명 문구 영역 */}
-        <View style={styles.descriptionBox}>
-          <Text style={styles.descriptionText}>{getRangeDescription()}</Text>
-        </View>
-
-        {/* 책 캐러셀 */}
-        {filteredBooks.length > 0 ? (
-          <>
-            <View style={styles.carouselContainer}>
-            <Animated.FlatList
-              ref={flatListRef}
-              data={filteredBooks}
-              renderItem={renderBookItem}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              scrollEnabled={true}
-              pagingEnabled={false}
-              snapToInterval={ITEM_WIDTH}
-              snapToAlignment="center"
-              decelerationRate="fast"
-              disableIntervalMomentum={false}
-              initialScrollIndex={DATA_LENGTH > 0 ? (initialScrollIndex || INITIAL_INDEX) : 0}
-              getItemLayout={(data, index) => ({
-                length: ITEM_WIDTH,
-                offset: ITEM_WIDTH * index,
-                index,
-              })}
-              contentContainerStyle={[
-                styles.carouselContent,
-                { paddingHorizontal: (SCREEN_WIDTH - ITEM_WIDTH) / 2 - ITEM_WIDTH * 1.5 },
-              ]}
-              onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
-                useNativeDriver: true,
-              })}
-              onMomentumScrollEnd={handleMomentumScrollEnd}
-              scrollEventThrottle={16}
-              onScrollToIndexFailed={(info) => {
-                // 스크롤 실패 시 재시도
-                setTimeout(() => {
-                  if (flatListRef.current) {
-                    flatListRef.current.scrollToIndex({
-                      index: info.index,
-                      animated: false,
-                    });
-                  }
-                }, 100);
-              }}
-            />
-          </View>
-          </>
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>해당 쪽수 범위의 책이 없습니다.</Text>
-          </View>
-        )}
-      </View>
-
-      {/* 선택된 책 정보 (배경 밖) */}
-      {selectedBook && (
-        <View style={styles.selectedBookInfo}>
-          <Text style={styles.selectedBookTitle} numberOfLines={2}>
-            {selectedBook.title}
-          </Text>
-          <View style={styles.selectedBookAuthorRow}>
-            <Ionicons name="person-outline" size={12} color={COLORS.SUBTITLE} />
-            <Text style={styles.selectedBookAuthor}>{selectedBook.author}</Text>
-          </View>
-        </View>
-      )}
-    </View>
-  );
-}
-
 // 카테고리 섹션 컴포넌트
 function CategorySection({ onPressCategory }: { onPressCategory: (categoryId: string) => void }) {
   return (
@@ -1214,7 +1090,17 @@ export default function DaedokPickScreen() {
   const [activeNav, setActiveNav] = useState('투데이');
 
   const handleCategory = (categoryId: string) => {
-    console.log('카테고리 클릭:', categoryId);
+    const apiKey = PICK_CATEGORY_TO_API[categoryId];
+    const category = categories.find((c) => c.id === categoryId);
+    if (!apiKey || !category) return;
+    router.push({
+      pathname: '/CategorySectionsScreen',
+      params: {
+        pickId: categoryId,
+        category: apiKey,
+        title: category.name,
+      },
+    });
   };
 
   return (
@@ -1226,18 +1112,9 @@ export default function DaedokPickScreen() {
           <Text style={styles.logoText}>대독단</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="person-circle-outline" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <ExpoImage source={BELL_ICON} style={styles.bellIcon} contentFit="contain" />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>10+</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <ProfileHeaderButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
+          <NotificationBellButton style={styles.headerIconButton} />
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 
@@ -1269,7 +1146,7 @@ export default function DaedokPickScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === '피드' && styles.tabActive]}
-          onPress={() => setActiveTab('피드')}>
+          onPress={() => router.push({ pathname: '/Drawer_1', params: { tab: '피드' } })}>
           <Text
             style={[
               styles.tabText,
@@ -1289,8 +1166,11 @@ export default function DaedokPickScreen() {
         decelerationRate="normal"
         scrollEventThrottle={16}
         nestedScrollEnabled>
-        {/* 이벤트 배너 */}
+        {/* 이벤트 배너 (배너 + 진행 중 이벤트) */}
         <EventBanner />
+
+        {/* 이번주 대독PICK */}
+        <WeeklyPickSection />
 
         {/* 대독 랭킹 섹션 */}
         <RankingSection />
@@ -1506,11 +1386,66 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom:5,
   },
+  weeklyPickSection: {
+    paddingHorizontal: 17,
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  weeklyPickLoading: {
+    minHeight: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weeklyPickList: {
+    paddingRight: 8,
+    gap: 12,
+  },
+  weeklyPickCard: {
+    width: Math.min(BANNER_WIDTH, 340),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginRight: 4,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.BORDER,
+    backgroundColor: '#FFFFFF',
+  },
+  weeklyPickCover: {
+    width: 92,
+    height: 128,
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+  },
+  weeklyPickCoverPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weeklyPickTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    gap: 6,
+  },
+  weeklyPickTitle: {
+    fontSize: 15,
+    fontFamily: FONTS.BOLD,
+    fontWeight: '700',
+    color: COLORS.TEXT,
+    lineHeight: 21,
+  },
+  weeklyPickDescription: {
+    fontSize: 12,
+    fontFamily: FONTS.REGULAR,
+    color: COLORS.SUBTITLE,
+    lineHeight: 18,
+  },
   // 이벤트 배너 스타일 (가로 슬라이드)
   eventBanner: {
     marginHorizontal: BANNER_SIDE_MARGIN,
     marginTop: 20,
-    marginBottom: 50,
+    marginBottom: 16,
     borderRadius: 18,
     overflow: 'hidden',
     height: BANNER_HEIGHT,
@@ -1520,6 +1455,32 @@ const styles = StyleSheet.create({
     width: BANNER_WIDTH,
     height: BANNER_HEIGHT,
     zIndex: 0,
+  },
+  bannerState: {
+    width: BANNER_WIDTH,
+    height: BANNER_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#F3F3F3',
+  },
+  bannerStateText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#777777',
+    textAlign: 'center',
+  },
+  bannerRetryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 9,
+    backgroundColor: '#2C8C55',
+  },
+  bannerRetryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   eventBannerSlide: {
     width: BANNER_WIDTH,
@@ -1842,154 +1803,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
     color: COLORS.SUBTITLE,
     lineHeight: 14,
-    textAlign: 'center',
-  },
-  // 독서 체력 섹션 스타일
-  readingStaminaSection: {
-    paddingHorizontal: 20,
-    marginTop: 30,
-    marginBottom: 45,
-  },
-  staminaHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  staminaHeaderLeft: {
-    flex: 1,
-    marginRight: 16,
-  },
-  staminaTitle: {
-    fontSize: 20,
-    fontFamily: FONTS.BOLD,
-    fontWeight: '700',
-    color: '#222222',
-    marginBottom: 8,
-    lineHeight: 28,
-  },
-  staminaSubtitle: {
-    fontSize: 13,
-    fontFamily: FONTS.REGULAR,
-    color: '#777777',
-    lineHeight: 20,
-  },
-  pageRangeContainer: {
-    marginBottom: 12,
-  },
-  pageRangeContent: {
-    gap: 10,
-    paddingRight: 18,
-  },
-  pageRangeButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    minHeight: 28,
-    borderRadius: 18,
-    backgroundColor: '#F5F5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pageRangeButtonActive: {
-    backgroundColor: '#222222',
-  },
-  pageRangeText: {
-    fontSize: 14,
-    fontFamily: FONTS.REGULAR,
-    color: '#555555',
-  },
-  pageRangeTextActive: {
-    fontFamily: FONTS.BOLD,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  descriptionAndCarouselWrapper: {
-    backgroundColor: '#F3F8E8',
-    borderRadius: 5,
-    paddingTop: 8,
-    paddingBottom: 0,
-    paddingHorizontal: 0,
-    marginTop: 4,
-    marginBottom: 16,
-    marginHorizontal: -20,
-    width: SCREEN_WIDTH,
-    overflow: 'hidden',
-  },
-  descriptionBox: {
-    backgroundColor: 'transparent',
-    paddingVertical: 5,
-    paddingHorizontal: 16,
-    marginBottom: 0,
-    alignItems: 'center',
-  },
-  descriptionText: {
-    fontSize: 14,
-    fontFamily: FONTS.REGULAR,
-    color: '#222222',
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  carouselContainer: {
-    height: 180,
-    marginBottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'visible',
-  },
-  carouselContent: {
-    alignItems: 'center',
-  },
-  bookCarouselItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 4,
-  },
-  bookCarouselCover: {
-    width: 100,
-    height: 160,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  selectedBookInfo: {
-    alignItems: 'center',
-    paddingTop: 4,
-    paddingHorizontal: 16,
-    marginTop: -4,
-  },
-  selectedBookTitle: {
-    fontSize: 14,
-    fontFamily: FONTS.BOLD,
-    fontWeight: '700',
-    color: '#222222',
-    marginBottom: 6,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  selectedBookAuthorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  selectedBookAuthor: {
-    fontSize: 13,
-    fontFamily: FONTS.REGULAR,
-    color: '#777777',
-    textAlign: 'center',
-  },
-  emptyState: {
-    height: 240,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    fontFamily: FONTS.REGULAR,
-    color: '#777777',
     textAlign: 'center',
   },
   // 카테고리 섹션 스타일

@@ -18,6 +18,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -120,17 +121,14 @@ export default function ReadingSession_2() {
   };
 
   const handleNext = () => {
-    if (selectedBook) {
-      // replace — 전환 중 뒤에 RS2가 비치지 않도록 스택에서 제거
-      // RS4에서 '이전'은 bookPickSource로 RS2로 replace 복귀
-      router.replace({
-        pathname: '/ReadingSession_4',
-        params: {
-          selectedBook: JSON.stringify(selectedBook),
-          bookPickSource: 'ReadingSession_2',
-        },
-      });
-    }
+    if (!selectedBook) return;
+    router.replace({
+      pathname: '/ReadingSession_4',
+      params: {
+        selectedBook: JSON.stringify(selectedBook),
+        bookPickSource: 'ReadingSession_2',
+      },
+    });
   };
 
   const handleSelectBook = (book: CurrentReadingItem) => {
@@ -176,9 +174,7 @@ export default function ReadingSession_2() {
               <Text style={styles.badgeText}>0</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 

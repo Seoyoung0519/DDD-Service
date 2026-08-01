@@ -1,6 +1,7 @@
 // src/services/auth/authService.ts
 
 import { LOGIN_API_BASE_URL } from '@/src/config/api';
+import { clearOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 요청에 사용할 타입
@@ -11,6 +12,25 @@ export interface GoogleLoginPayload {
   platform: LoginPlatform;
 }
 
+export interface KakaoLoginPayload {
+  accessToken: string;
+  platform: LoginPlatform;
+}
+
+export interface EmailVerificationPayload {
+  email: string;
+  code: string;
+  name?: string;
+}
+
+export interface SendEmailVerificationCodeResponse {
+  message: string;
+  expiresIn: number;
+}
+
+/** Google·카카오 로그인 공통 응답 */
+export type AuthLoginResponse = GoogleLoginResponse;
+
 // 백엔드 응답 타입
 export interface GoogleLoginResponse {
   user: {
@@ -18,6 +38,7 @@ export interface GoogleLoginResponse {
     email: string;
     name: string;
     avatarUrl?: string | null;
+    role?: 'user' | 'admin';
   };
   accessToken: string; // 이후 Authorization 헤더에 사용할 토큰
   expiresIn: number; // 초 단위
@@ -25,6 +46,12 @@ export interface GoogleLoginResponse {
 
 const ACCESS_TOKEN_KEY = 'daedokdan_access_token';
 const GOOGLE_ACCESS_TOKEN_KEY = 'daedokdan_google_access_token';
+const GOOGLE_ID_TOKEN_KEY = 'daedokdan_google_id_token';
+const EXTENDED_ACCESS_TOKEN_KEY = 'daedokdan_extended_access_token';
+const CACHED_USER_ID_KEY = 'daedokdan_user_id';
+const AUTH_PROVIDER_KEY = 'daedokdan_auth_provider';
+
+export type AuthProvider = 'google' | 'kakao' | 'email';
 
 /** 콘솔용 마스킹 (전체 JWT 노출 방지) */
 function maskToken(t: string): string {
@@ -32,7 +59,24 @@ function maskToken(t: string): string {
   return `${t.slice(0, 8)}…${t.slice(-6)}`;
 }
 
-// 토큰 저장 함수
+export class AuthSessionExpiredError extends Error {
+  constructor(message = '로그인이 만료되었습니다. 다시 로그인해 주세요.') {
+    super(message);
+    this.name = 'AuthSessionExpiredError';
+  }
+}
+
+function isAuthUnauthorized(status: number, errorText: string): boolean {
+  if (status !== 401) return false;
+  const t = errorText.trim().toLowerCase();
+  if (!t) return true;
+  return (
+    t.includes('invalid') ||
+    t.includes('expired') ||
+    t.includes('unauthorized') ||
+    t.includes('token')
+  );
+}
 export async function saveAccessToken(token: string) {
   await AsyncStorage.setItem(ACCESS_TOKEN_KEY, token);
 }
@@ -55,6 +99,88 @@ export async function clearGoogleAccessToken() {
   await AsyncStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
 }
 
+/** Google idToken — 확장 API(온보딩 등)에서 로그인 JWT 대신 쓸 수 있음 */
+export async function saveGoogleIdToken(token: string) {
+  await AsyncStorage.setItem(GOOGLE_ID_TOKEN_KEY, token);
+}
+
+export async function getGoogleIdToken() {
+  return AsyncStorage.getItem(GOOGLE_ID_TOKEN_KEY);
+}
+
+export async function clearGoogleIdToken() {
+  await AsyncStorage.removeItem(GOOGLE_ID_TOKEN_KEY);
+}
+
+/** 확장 API(8s8k) 전용 JWT — 로그인 서버 교환 응답 등 */
+export async function saveExtendedAccessToken(token: string) {
+  await AsyncStorage.setItem(EXTENDED_ACCESS_TOKEN_KEY, token);
+}
+
+export async function getExtendedAccessToken() {
+  return AsyncStorage.getItem(EXTENDED_ACCESS_TOKEN_KEY);
+}
+
+export async function clearExtendedAccessToken() {
+  await AsyncStorage.removeItem(EXTENDED_ACCESS_TOKEN_KEY);
+}
+
+export async function saveCachedUserId(userId: string) {
+  await AsyncStorage.setItem(CACHED_USER_ID_KEY, userId);
+}
+
+export async function getCachedUserId() {
+  return AsyncStorage.getItem(CACHED_USER_ID_KEY);
+}
+
+export async function clearCachedUserId() {
+  await AsyncStorage.removeItem(CACHED_USER_ID_KEY);
+}
+
+export async function saveAuthProvider(provider: AuthProvider) {
+  const userId = await getCachedUserId();
+  const previous = await getAuthProvider();
+  if (!previous && userId) {
+    await migrateScopedStorageKey(`session/${userId}`, `${provider}/${userId}`);
+  }
+  await AsyncStorage.setItem(AUTH_PROVIDER_KEY, provider);
+}
+
+async function migrateScopedStorageKey(fromSuffix: string, toSuffix: string): Promise<void> {
+  const prefixes = [
+    '@daedokdan/onboarding_profile_cache',
+    '@daedokdan_onboarding_skipped',
+  ] as const;
+  for (const prefix of prefixes) {
+    const fromKey = `${prefix}/${fromSuffix}`;
+    const toKey = `${prefix}/${toSuffix}`;
+    const raw = await AsyncStorage.getItem(fromKey);
+    if (!raw) continue;
+    const existing = await AsyncStorage.getItem(toKey);
+    if (!existing) {
+      await AsyncStorage.setItem(toKey, raw);
+    }
+    await AsyncStorage.removeItem(fromKey);
+  }
+}
+
+export async function getAuthProvider(): Promise<AuthProvider | null> {
+  const value = await AsyncStorage.getItem(AUTH_PROVIDER_KEY);
+  return value === 'google' || value === 'kakao' || value === 'email' ? value : null;
+}
+
+export async function clearAuthProvider() {
+  await AsyncStorage.removeItem(AUTH_PROVIDER_KEY);
+}
+
+/** 구글·카카오 등 로그인 방식별 로컬 데이터 분리용 키 접미사 */
+export async function getAuthScopedStorageSuffix(): Promise<string | null> {
+  const userId = await getCachedUserId();
+  if (!userId) return null;
+  const provider = await getAuthProvider();
+  return `${provider ?? 'session'}/${userId}`;
+}
+
 /**
  * 메인 API(검색/책장/책 상세/읽기 세션 등) Authorization
  *
@@ -69,7 +195,15 @@ export async function getMainApiAccessToken(): Promise<string | null> {
 
 // 토큰 삭제 함수
 export async function clearAccessToken() {
-  await AsyncStorage.removeItem(ACCESS_TOKEN_KEY);
+  await AsyncStorage.multiRemove([
+    ACCESS_TOKEN_KEY,
+    GOOGLE_ACCESS_TOKEN_KEY,
+    GOOGLE_ID_TOKEN_KEY,
+    EXTENDED_ACCESS_TOKEN_KEY,
+    CACHED_USER_ID_KEY,
+    AUTH_PROVIDER_KEY,
+  ]);
+  await clearOnboardingSkipped();
 }
 
 export type PrintAccessTokenDebugOptions = {
@@ -110,6 +244,206 @@ export async function printAccessTokenDebug(
       : '(없음)',
   );
   console.log('[AUTH] =========================================');
+}
+
+function emailAuthErrorMessage(status: number, body: string, fallback: string): string {
+  let detail = body.trim();
+  try {
+    const parsed = JSON.parse(body) as { error?: unknown; detail?: unknown; message?: unknown };
+    detail = [parsed.error, parsed.detail, parsed.message]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .join('\n');
+  } catch {
+    // 일반 텍스트 응답
+  }
+  if (status === 429) return detail || '인증 코드는 1분 후 다시 요청할 수 있습니다.';
+  if (status === 401) return detail || '인증 코드가 올바르지 않거나 만료되었습니다.';
+  return detail || `${fallback} (HTTP ${status})`;
+}
+
+async function postEmailAuth<T>(
+  path: '/api/auth/email/send-code' | '/api/auth/email/verify',
+  body: Record<string, unknown>,
+  fallback: string,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 35_000);
+  const startedAt = Date.now();
+  let res: Response;
+  try {
+    res = await fetch(`${LOGIN_API_BASE_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (reason) {
+    if (reason instanceof Error && reason.name === 'AbortError') {
+      throw new Error('로그인 서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.');
+    }
+    throw new Error('네트워크 연결을 확인해 주세요.');
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const text = await res.text().catch(() => '');
+  if (!res.ok) {
+    if (__DEV__) {
+      console.warn('[AUTH] Email auth request failed:', {
+        path,
+        status: res.status,
+        elapsedMs: Date.now() - startedAt,
+        codeLength: typeof body.code === 'string' ? body.code.length : undefined,
+      });
+    }
+    throw new Error(emailAuthErrorMessage(res.status, text, fallback));
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error('서버 응답을 처리하지 못했습니다.');
+  }
+}
+
+export function sendEmailVerificationCode(
+  email: string,
+): Promise<SendEmailVerificationCodeResponse> {
+  return postEmailAuth<SendEmailVerificationCodeResponse>(
+    '/api/auth/email/send-code',
+    { email: email.trim().toLowerCase() },
+    '인증 코드 발송에 실패했습니다.',
+  );
+}
+
+export async function verifyEmailCode(
+  payload: EmailVerificationPayload,
+): Promise<AuthLoginResponse> {
+  const data = await postEmailAuth<AuthLoginResponse>(
+    '/api/auth/email/verify',
+    {
+      email: payload.email.trim().toLowerCase(),
+      code: payload.code.trim(),
+      ...(payload.name?.trim() ? { name: payload.name.trim() } : {}),
+    },
+    '이메일 인증에 실패했습니다.',
+  );
+
+  if (!data.accessToken || !data.user?.id) {
+    throw new Error('로그인 응답에 필요한 사용자 정보가 없습니다.');
+  }
+  await saveAccessToken(data.accessToken);
+  await saveCachedUserId(data.user.id);
+  await saveAuthProvider('email');
+  return data;
+}
+
+async function postSocialLogin(
+  path: '/api/auth/google' | '/api/auth/kakao',
+  body: Record<string, unknown>,
+): Promise<AuthLoginResponse> {
+  const url = `${LOGIN_API_BASE_URL}${path}`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (fetchError: unknown) {
+    const message =
+      fetchError instanceof Error
+        ? fetchError.message
+        : '네트워크 연결을 확인해주세요. 서버에 연결할 수 없습니다.';
+    console.error('[AUTH] Network error during login:', fetchError);
+    throw new Error(message);
+  }
+
+  if (!res.ok) {
+    let errorText = '';
+    try {
+      errorText = await res.text();
+    } catch {
+      errorText = 'Failed to read error response';
+    }
+
+    const statusCode =
+      typeof res.status === 'number' && !Number.isNaN(res.status)
+        ? res.status
+        : parseInt(String(res.status), 10) || 0;
+
+    console.error('[AUTH] Login failed:', {
+      path,
+      status: statusCode,
+      statusText: res.statusText,
+      errorText,
+    });
+
+    const trimmed = errorText?.trim() ?? '';
+    let detail = trimmed || res.statusText?.trim() || '';
+    try {
+      const parsed = JSON.parse(trimmed) as { error?: string; detail?: string };
+      if (typeof parsed.error === 'string') detail = parsed.error;
+      if (typeof parsed.detail === 'string' && parsed.detail) {
+        detail = `${detail}\n${parsed.detail}`;
+      }
+    } catch {
+      // plain text body
+    }
+
+    if (statusCode === 503 || statusCode === 502) {
+      throw new Error(
+        '로그인 서버가 일시적으로 응답하지 않습니다. (503)\n잠시 후 다시 시도하거나, 호스팅(예: Render) 상태를 확인해 주세요.',
+      );
+    }
+    if (statusCode === 504) {
+      throw new Error(
+        '로그인 요청 시간이 초과되었습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+      );
+    }
+
+    const errorMessage = detail
+      ? `로그인 실패 (${statusCode}): ${detail}`
+      : `로그인 실패 (${statusCode}). 서버 메시지가 없습니다. 잠시 후 다시 시도해 주세요.`;
+    throw new Error(errorMessage);
+  }
+
+  let data: AuthLoginResponse;
+  try {
+    data = await res.json();
+  } catch (jsonError: unknown) {
+    console.error('[AUTH] JSON parse error:', jsonError);
+    throw new Error('서버 응답을 처리하는 중 오류가 발생했습니다.');
+  }
+
+  await saveAccessToken(data.accessToken);
+  await saveCachedUserId(data.user.id);
+  await saveAuthProvider(path === '/api/auth/kakao' ? 'kakao' : 'google');
+
+  const raw = data as AuthLoginResponse & Record<string, unknown>;
+  for (const key of ['extendedAccessToken', 'extendedToken', 'apiAccessToken'] as const) {
+    const candidate = raw[key];
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      await saveExtendedAccessToken(candidate);
+      break;
+    }
+  }
+
+  if (__DEV__) {
+    console.log('[AUTH] ✅ Login success:', {
+      path,
+      email: data.user.email,
+      userId: data.user.id,
+      accessTokenLength: data.accessToken.length,
+      expiresIn: data.expiresIn,
+      responseKeys: Object.keys(raw),
+    });
+  }
+
+  return data;
 }
 
 // Google 로그인 API 호출
@@ -190,87 +524,18 @@ export async function loginWithGoogle(
   }
 
   const requestBody = { idToken, platform };
-  const url = `${LOGIN_API_BASE_URL}/api/auth/google`;
+  return postSocialLogin('/api/auth/google', requestBody);
+}
 
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-  } catch (fetchError: any) {
-    console.error('[AUTH] Network error during login:', fetchError);
-    throw new Error(
-      fetchError?.message || '네트워크 연결을 확인해주세요. 서버에 연결할 수 없습니다.'
-    );
+/** 카카오 로그인 — POST /api/auth/kakao */
+export async function loginWithKakao(payload: KakaoLoginPayload): Promise<AuthLoginResponse> {
+  const { accessToken, platform } = payload;
+
+  if (!accessToken || typeof accessToken !== 'string' || accessToken.trim().length === 0) {
+    throw new Error('유효하지 않은 카카오 accessToken입니다.');
   }
 
-  if (!res.ok) {
-    let errorText = '';
-    try {
-      errorText = await res.text();
-    } catch (e) {
-      errorText = 'Failed to read error response';
-    }
-
-    /** RN/fetch 환경에 따라 status가 문자열로 올 수 있음 */
-    const statusCode =
-      typeof res.status === 'number' && !Number.isNaN(res.status)
-        ? res.status
-        : parseInt(String(res.status), 10) || 0;
-
-    console.error('[AUTH] Login failed:', {
-      status: statusCode,
-      statusText: res.statusText,
-      errorText,
-    });
-
-    const trimmed = errorText?.trim() ?? '';
-    const detail = trimmed || res.statusText?.trim() || '';
-
-    /** 502/503 — 본문·statusText가 비는 경우가 많음 (게이트웨이/Render 등) */
-    if (statusCode === 503 || statusCode === 502) {
-      throw new Error(
-        '로그인 서버가 일시적으로 응답하지 않습니다. (503)\n잠시 후 다시 시도하거나, 호스팅(예: Render) 상태를 확인해 주세요.',
-      );
-    }
-    if (statusCode === 504) {
-      throw new Error(
-        '로그인 요청 시간이 초과되었습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
-      );
-    }
-
-    const errorMessage = detail
-      ? `로그인 실패 (${statusCode}): ${detail}`
-      : `로그인 실패 (${statusCode}). 서버 메시지가 없습니다. 잠시 후 다시 시도해 주세요.`;
-    throw new Error(errorMessage);
-  }
-
-  let data: GoogleLoginResponse;
-  try {
-    data = await res.json();
-  } catch (jsonError: any) {
-    console.error('[AUTH] JSON parse error:', jsonError);
-    throw new Error('서버 응답을 처리하는 중 오류가 발생했습니다.');
-  }
-
-  // accessToken 저장
-  await saveAccessToken(data.accessToken);
-
-  if (__DEV__) {
-    console.log('[AUTH] ✅ Login success:', {
-      email: data.user.email,
-      userId: data.user.id,
-      accessTokenLength: data.accessToken.length,
-      expiresIn: data.expiresIn,
-    });
-    // 개발 빌드에서만 전체 JWT 출력 (릴리스 __DEV__ === false 이면 출력 안 됨)
-    console.log('[AUTH] accessToken (full):', data.accessToken);
-  }
-  return data;
+  return postSocialLogin('/api/auth/kakao', { accessToken, platform });
 }
 
 // 세션 체크 함수
@@ -279,14 +544,17 @@ export async function checkSession(): Promise<boolean> {
   if (!token) return false;
 
   try {
-    // 토큰 유효성 검증을 위해 백엔드에 요청
     const res = await fetch(`${LOGIN_API_BASE_URL}/api/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
+    if (isAuthUnauthorized(res.status, await res.text().catch(() => ''))) {
+      await clearAccessToken();
+      return false;
+    }
     return res.ok;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -294,7 +562,9 @@ export async function checkSession(): Promise<boolean> {
 // 현재 로그인 유저 정보 조회
 export async function fetchCurrentUser() {
   const token = await getAccessToken();
-  if (!token) throw new Error('로그인 토큰이 없습니다.');
+  if (!token) {
+    throw new AuthSessionExpiredError('로그인 토큰이 없습니다.');
+  }
 
   const res = await fetch(`${LOGIN_API_BASE_URL}/api/auth/me`, {
     headers: {
@@ -304,6 +574,13 @@ export async function fetchCurrentUser() {
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => '');
+    if (isAuthUnauthorized(res.status, errorText)) {
+      await clearAccessToken();
+      if (__DEV__) {
+        console.warn('[AUTH] 세션 만료 — 저장된 토큰을 삭제했습니다.');
+      }
+      throw new AuthSessionExpiredError();
+    }
     console.error('[AUTH] /me failed:', res.status, errorText);
     throw new Error('내 정보 조회 실패');
   }
@@ -314,6 +591,7 @@ export async function fetchCurrentUser() {
     email: string;
     name: string;
     avatarUrl?: string | null;
+    role?: 'user' | 'admin';
     isOnboardingCompleted?: boolean; // 온보딩 완료 여부
   };
 }

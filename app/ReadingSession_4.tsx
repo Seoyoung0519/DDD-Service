@@ -19,6 +19,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 import { fetchCommuteRoutes } from '@/src/api/commuteRoutes';
 import {
   fetchRecentCommuteRoutes,
@@ -29,6 +30,11 @@ import { searchCommutePlaces } from '@/src/api/commutePlaces';
 import { getIdsFromSelectedBook } from '@/src/api/readingSession';
 import { CommutePlaceSearchDualCard } from '@/src/components/commute/CommutePlaceSearchDualCard';
 import { FALLBACK_COMMUTE_ROUTE_JSON } from '@/src/constants/fallbackCommuteRoute';
+import {
+  buildDevCommuteRoutesFromSearch,
+  DEMO_COMMUTE_COORDS,
+  isCommuteRoutesDevFallbackEnabled,
+} from '@/src/constants/demoCommuteFlow';
 import { consumeCommutePlaceSelection } from '@/src/state/commutePlaceSelection';
 import {
   setCommuteRouteResult,
@@ -296,6 +302,17 @@ export default function ReadingSession_4() {
       user = await fetchCurrentUser();
       const sessionDraft = buildSessionDraft(user);
 
+      if (__DEV__) {
+        console.warn('[ReadingSession_4] commute route lookup', {
+          originPlaceId: resolvedOrigin,
+          destinationPlaceId: resolvedDestination,
+          originLat,
+          originLng,
+          destinationLat,
+          destinationLng,
+        });
+      }
+
       const routes = await fetchCommuteRoutes({
         originPlaceId: resolvedOrigin,
         destinationPlaceId: resolvedDestination,
@@ -359,12 +376,60 @@ export default function ReadingSession_4() {
         sessionDraft,
       });
       router.push('/CommuteRouteResultScreen');
-    } catch (error: any) {
-      console.error('[ReadingSession_4] 통근 경로 조회 실패:', error);
+    } catch (error: unknown) {
       const msg =
-        typeof error?.message === 'string'
+        error instanceof Error
           ? error.message
           : String(error ?? '알 수 없는 오류');
+      if (__DEV__) {
+        console.warn('[ReadingSession_4] commute routes failed → fallback:', msg, error);
+      }
+
+      const devOriginLat = originLat ?? DEMO_COMMUTE_COORDS.origin.lat;
+      const devOriginLng = originLng ?? DEMO_COMMUTE_COORDS.origin.lng;
+      const devDestLat = destinationLat ?? DEMO_COMMUTE_COORDS.destination.lat;
+      const devDestLng = destinationLng ?? DEMO_COMMUTE_COORDS.destination.lng;
+
+      if (
+        isCommuteRoutesDevFallbackEnabled() &&
+        user &&
+        Number.isFinite(devOriginLat) &&
+        Number.isFinite(devOriginLng) &&
+        Number.isFinite(devDestLat) &&
+        Number.isFinite(devDestLng)
+      ) {
+        const routes = buildDevCommuteRoutesFromSearch({
+          originLat: devOriginLat,
+          originLng: devOriginLng,
+          destinationLat: devDestLat,
+          destinationLng: devDestLng,
+          departureLabel: departure.trim(),
+          arrivalLabel: arrival.trim(),
+        });
+        setCommuteRouteResult({
+          departureLabel: departure.trim(),
+          arrivalLabel: arrival.trim(),
+          originPlaceId: resolvedOrigin,
+          destinationPlaceId: resolvedDestination,
+          originLat: devOriginLat,
+          originLng: devOriginLng,
+          destinationLat: devDestLat,
+          destinationLng: devDestLng,
+          routes,
+          selectedRouteId: routes[0].id,
+          sessionDraft: buildSessionDraft(user),
+          warningMessage:
+            '개발 모드: 통근 경로 API가 응답하지 않아 데모 경로로 진행합니다.\n\n' + msg,
+          isFallback: false,
+        });
+        router.push('/CommuteRouteResultScreen');
+        return;
+      }
+
+      Alert.alert(
+        '통근 경로 조회 실패',
+        `${msg}\n\n예시 경로 화면으로 이동합니다.`,
+      );
       pushFallbackRouteResult(msg, user);
     } finally {
       setIsStartingSession(false);
@@ -455,9 +520,7 @@ export default function ReadingSession_4() {
               <Text style={styles.badgeText}>0</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 

@@ -6,11 +6,11 @@
  * - GET `/library/completed` — 완독 도서 (`CompletedBookListOut`: `{ items: CompletedBookOut[] }`)
  * - GET `/library/wishlist` — 찜한 책 (`WishBookListOut`: `{ items: WishBookOut[] }`)
  * - DELETE `/library/wishlist` — 찜 제거 (body: `{ bookId }`, 204)
- * - GET `/library/calendar?year=&month=` — 월별 독서 캘린더 (`CalendarMonthOut`)
+ * - GET `/library/calendar?year=&month=` — 월별 독서 캘린더 (`CalendarMonthOut`, 인증샷 URL 포함 가능)
  * - GET `/library/stats` — 대독 통계 (`ReadingStatsOut`)
  * - POST `LIBRARY_WISHLIST_ADD_PATH` (기본 `/library/wishlist/items`) — 찜 추가
  */
-import { LIBRARY_API_BASE_URL, LIBRARY_WISHLIST_ADD_PATH } from '@/src/config/api';
+import { LIBRARY_API_BASE_URL, LIBRARY_WISHLIST_ADD_PATH, PROOF_API_BASE_URL } from '@/src/config/api';
 import { getMainApiAccessToken } from '@/src/services/auth/authService';
 
 export type LibrarySummaryOut = {
@@ -332,6 +332,19 @@ export async function removeFromLibraryWishlist(
 
 const CALENDAR_PATH = '/library/calendar';
 
+const PROOF_MEDIA_BASE_URL =
+  process.env.EXPO_PUBLIC_PROOF_MEDIA_BASE_URL ?? PROOF_API_BASE_URL;
+
+/** 상대 `image_path` → RN Image용 절대 URL */
+function resolveProofImageUrl(rawPath: string): string {
+  const s = rawPath.trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+  const base = PROOF_MEDIA_BASE_URL.replace(/\/$/, '');
+  return s.startsWith('/') ? `${base}${s}` : `${base}/${s}`;
+}
+
 /** API `CalendarDayOut` */
 export type CalendarDayOut = {
   date: string;
@@ -340,6 +353,8 @@ export type CalendarDayOut = {
   bookThumbnailUrl?: string | null;
   readPageStart?: number | null;
   readPageEnd?: number | null;
+  proofId?: string | null;
+  proofImageUrl?: string | null;
 };
 
 export type CalendarMonthOut = {
@@ -360,11 +375,58 @@ function normalizeCalendarDay(raw: unknown): CalendarDayOut | null {
     return Number.isFinite(n) ? n : null;
   };
 
+  const nestedProof =
+    asRecord(o.proof) ??
+    asRecord(o.readProof) ??
+    asRecord(o.read_proof) ??
+    asRecord(o.readingProof) ??
+    asRecord(o.reading_proof);
+
   const bid = o.bookId ?? o.book_id;
   const title = o.bookTitle ?? o.book_title;
   const thumb = o.bookThumbnailUrl ?? o.book_thumbnail_url;
   const rs = o.readPageStart ?? o.read_page_start;
   const re = o.readPageEnd ?? o.read_page_end;
+  const proofIdRaw =
+    o.proofId ??
+    o.proof_id ??
+    o.readProofId ??
+    o.read_proof_id ??
+    nestedProof?.id ??
+    nestedProof?.proofId ??
+    nestedProof?.proof_id;
+  let proofId =
+    proofIdRaw != null && String(proofIdRaw).trim() ? String(proofIdRaw).trim() : null;
+
+  const proofImgRaw =
+    o.proofImageUrl ??
+    o.proof_image_url ??
+    o.proofUrl ??
+    o.proof_url ??
+    nestedProof?.imageUrl ??
+    nestedProof?.image_url ??
+    nestedProof?.imagePath ??
+    nestedProof?.image_path ??
+    nestedProof?.proofImageUrl ??
+    nestedProof?.proof_image_url ??
+    // 캘린더 day에 인증샷 URL만 오는 경우 (OpenAPI엔 없을 수 있음)
+    o.imageUrl ??
+    o.image_url ??
+    o.imagePath ??
+    o.image_path;
+
+  const proofImageUrl =
+    proofImgRaw != null && String(proofImgRaw).trim()
+      ? resolveProofImageUrl(String(proofImgRaw))
+      : null;
+
+  // URL 경로에 UUID가 있으면 proofId 후보로 사용
+  if (!proofId && proofImageUrl) {
+    const uuid = proofImageUrl.match(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
+    );
+    if (uuid) proofId = uuid[0];
+  }
 
   return {
     date,
@@ -373,6 +435,8 @@ function normalizeCalendarDay(raw: unknown): CalendarDayOut | null {
     bookThumbnailUrl: thumb != null && String(thumb).trim() ? String(thumb).trim() : null,
     readPageStart: strN(rs),
     readPageEnd: strN(re),
+    proofId,
+    proofImageUrl,
   };
 }
 
@@ -451,9 +515,15 @@ export function indexCalendarDaysByDayOfMonth(days: CalendarDayOut[]): Record<nu
   return out;
 }
 
+/** 해당 일에 인증샷이 있으면 true */
+export function calendarDayHasProof(entry: CalendarDayOut | undefined): boolean {
+  return Boolean(entry?.proofImageUrl?.trim());
+}
+
 /** 해당 일에 독서 기록(책)이 있으면 true — 책 메타 없이 페이지만 있어도 세션으로 인정 */
 export function calendarDayHasReading(entry: CalendarDayOut | undefined): boolean {
   if (!entry) return false;
+  if (calendarDayHasProof(entry)) return true;
   const hasBookMeta = Boolean(
     (entry.bookId && entry.bookId.trim()) ||
       (entry.bookTitle && entry.bookTitle.trim()) ||

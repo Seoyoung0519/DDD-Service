@@ -65,6 +65,7 @@ export interface ReadingSession {
   actualStartPage: number | null;
   actualEndPage: number | null;
   actualPages: number | null;
+  effectiveMinutes?: number | null;
   sessionType: SessionType;
   startedAt: string;
   endedAt: string | null;
@@ -74,9 +75,9 @@ export interface ReadingSession {
 }
 
 export interface FinishReadingSessionPayload {
-  actualStartPage?: number;
-  actualEndPage?: number;
-  actualPages?: number;
+  user_id: string;
+  end_page: number;
+  actual_minutes: number;
 }
 
 async function getAuthHeaders() {
@@ -207,10 +208,20 @@ export async function finishReadingSession(
 
   const url = `${READING_API_BASE_URL}/api/reading/sessions/${sessionId}/finish`;
 
+  const body = {
+    user_id: payload.user_id,
+    end_page: payload.end_page,
+    actual_minutes: payload.actual_minutes,
+  };
+
+  if (__DEV__) {
+    console.log('[readingSession] PATCH finish\n', url, '\n', JSON.stringify(body, null, 2));
+  }
+
   const res = await fetch(url, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {

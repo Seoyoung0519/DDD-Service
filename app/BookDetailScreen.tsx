@@ -1,33 +1,38 @@
+import { fetchFeed, type FeedItemOut } from '@/src/api/feed';
+import { fetchBookReviews, type ReviewOut } from '@/src/api/reviews';
+import {
+  FeedReportMenuButton,
+  UserReportMenuButton,
+} from '@/src/components/reports/FeedReportMenuButton';
+import { ReportActionSheet } from '@/src/components/reports/ReportActionSheet';
+import { reportAppError, userFacingMessage } from '@/src/utils/userFacingError';
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  getBookDetail,
-  getBookDetailOrNotFound,
-  hydrateBookForDetailViaSearch,
-  normalizeTitleKey,
-  type BookDetailResponse,
+    getBookDetail,
+    getBookDetailOrNotFound,
+    hydrateBookForDetailViaSearch,
+    normalizeTitleKey,
+    type BookDetailResponse,
 } from '../src/api/search';
 import { addBookToWish, WishAddFailure } from '../src/api/userBooksWish';
-import { fetchFeed, type FeedItemOut } from '@/src/api/feed';
-import { fetchBookReviews, type ReviewOut } from '@/src/api/reviews';
-import { reportAppError, userFacingMessage } from '@/src/utils/userFacingError';
 
 function reviewOutToFeedLike(r: ReviewOut): FeedItemOut {
   return {
@@ -136,6 +141,10 @@ export default function BookDetailScreen() {
   const [bookReviewItems, setBookReviewItems] = useState<FeedItemOut[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [reportTarget, setReportTarget] = useState<{
+    type: 'user' | 'review';
+    id: string;
+  } | null>(null);
 
   const loadBookReviews = useCallback(async () => {
     if (!book?.id) return;
@@ -396,7 +405,10 @@ export default function BookDetailScreen() {
       <View style={styles.reviewCardContainer}>
         <View style={styles.reviewUserRow}>
           <View style={styles.reviewUserLeft}>
-            <View style={styles.reviewProfileImage}>
+            <UserReportMenuButton
+              triggerStyle={styles.reviewProfileImage}
+              userName={displayName}
+              onPressReport={() => setReportTarget({ type: 'user', id: item.userId })}>
               {item.userAvatarUrl?.trim() ? (
                 <ExpoImage
                   source={{ uri: item.userAvatarUrl }}
@@ -406,7 +418,7 @@ export default function BookDetailScreen() {
               ) : (
                 <Ionicons name="person" size={16} color="#999" />
               )}
-            </View>
+            </UserReportMenuButton>
             <View style={styles.reviewUserInfo}>
               <Text style={styles.reviewNickname} numberOfLines={1}>
                 {displayName}
@@ -414,6 +426,10 @@ export default function BookDetailScreen() {
               <Text style={styles.reviewRoleLabel}>포스트</Text>
             </View>
           </View>
+          <FeedReportMenuButton
+            iconSize={21}
+            onPressReport={() => setReportTarget({ type: 'review', id: item.reviewId })}
+          />
         </View>
 
         <View style={styles.reviewBookImageContainer}>
@@ -715,6 +731,16 @@ export default function BookDetailScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+      {reportTarget ? (
+        <ReportActionSheet
+          visible
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          actionLabel={reportTarget.type === 'user' ? '신고하기' : '피드 신고하기'}
+          startWithForm
+          onClose={() => setReportTarget(null)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

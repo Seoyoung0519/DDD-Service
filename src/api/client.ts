@@ -3,6 +3,15 @@ import { Alert, Platform } from 'react-native';
 import { MAIN_API_BASE_URL } from '@/src/config/api';
 import { getMainApiAccessToken } from '@/src/services/auth/authService';
 
+export type ApiRequestConfig = AxiosRequestConfig & {
+  /** true면 인터셉터에서 console.error·Alert 생략 (호출부에서 처리) */
+  suppressApiErrorLog?: boolean;
+};
+
+function isSuppressApiErrorLog(config: AxiosRequestConfig | undefined): boolean {
+  return Boolean((config as ApiRequestConfig | undefined)?.suppressApiErrorLog);
+}
+
 /** 서버가 배열/객체 등으로 에러 본문을 줄 때 문자열 메시지로 정규화 */
 function extractApiErrorMessage(data: unknown): string | undefined {
   if (data == null) return undefined;
@@ -32,8 +41,26 @@ function extractApiErrorMessage(data: unknown): string | undefined {
   return undefined;
 }
 
+/** Axios/네트워크 오류에서 사용자·로그용 메시지 추출 */
+export function formatAxiosApiError(error: unknown, fallback = '일시적인 오류가 발생했어요.'): string {
+  if (axios.isAxiosError(error)) {
+    const fromBody = extractApiErrorMessage(error.response?.data);
+    if (fromBody) return fromBody;
+    if (error.code === 'ECONNABORTED') {
+      return '요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.';
+    }
+    if (!error.response) {
+      return error.message || '네트워크 연결을 확인해 주세요.';
+    }
+  }
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return fallback;
+}
+
 /** 로그용: 파싱 실패 시 JSON으로 남김 ([object Object] 방지) */
-function formatApiErrorBodyForLog(data: unknown, maxLen = 800): string {
+export function formatApiErrorBodyForLog(data: unknown, maxLen = 800): string {
   const msg = extractApiErrorMessage(data);
   if (msg) return msg;
   try {
@@ -107,9 +134,11 @@ client.interceptors.response.use(
   (error) => {
     // 네트워크 오류
     if (!error.response) {
-      console.error('[API] Network Error:', error.message);
-      if (Platform.OS !== 'web') {
-        Alert.alert('오류', '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.');
+      if (!isSuppressApiErrorLog(error.config)) {
+        console.error('[API] Network Error:', error.message);
+        if (Platform.OS !== 'web') {
+          Alert.alert('오류', '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.');
+        }
       }
       return Promise.reject(error);
     }
@@ -126,7 +155,9 @@ client.interceptors.response.use(
       message = '도서 검색 서비스에 일시적인 문제가 발생했어요. 잠시 후 다시 시도해주세요.';
     }
 
-    console.error(`[API] Error ${status}:`, logLine);
+    if (!isSuppressApiErrorLog(error.config)) {
+      console.error(`[API] Error ${status}:`, logLine);
+    }
 
     const isApiKeyAuthFailed =
       (typeof errorMessage === 'string' && errorMessage.includes('ApiKeyAuthFailed')) ||
@@ -150,23 +181,23 @@ client.interceptors.response.use(
 
 // 헬퍼 함수들
 export const apiClient = {
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  get: <T = any>(url: string, config?: ApiRequestConfig): Promise<AxiosResponse<T>> => {
     return client.get<T>(url, config);
   },
 
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  post: <T = any>(url: string, data?: any, config?: ApiRequestConfig): Promise<AxiosResponse<T>> => {
     return client.post<T>(url, data, config);
   },
 
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  put: <T = any>(url: string, data?: any, config?: ApiRequestConfig): Promise<AxiosResponse<T>> => {
     return client.put<T>(url, data, config);
   },
 
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  delete: <T = any>(url: string, config?: ApiRequestConfig): Promise<AxiosResponse<T>> => {
     return client.delete<T>(url, config);
   },
 
-  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
+  patch: <T = any>(url: string, data?: any, config?: ApiRequestConfig): Promise<AxiosResponse<T>> => {
     return client.patch<T>(url, data, config);
   },
 };

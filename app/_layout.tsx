@@ -7,9 +7,12 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AdminReturnFab } from '@/src/components/admin/AdminReturnFab';
+
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 /** 로그인/메인과 맞춰 스택·윈도우 배경을 고정 (다크 모드에서도 Navigation 배경만 검게 되는 현상 완화) */
-const ROOT_STACK_BG = '#F0EEEB';
+const ROOT_STACK_BG = '#E8F3ED';
 
 /**
  * 파일 기반 라우트(app/*.tsx)를 자동 등록하고, 옵션만 필요한 화면만 Stack.Screen 으로 지정합니다.
@@ -19,8 +22,6 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    // 번들 로드 직후 스플래시가 남거나 윈도우가 검게 보이는 경우 완화
-    void SplashScreen.hideAsync();
     void SystemUI.setBackgroundColorAsync(ROOT_STACK_BG);
   }, []);
 
@@ -31,6 +32,12 @@ export default function RootLayout() {
           headerShown: false,
           contentStyle: { flex: 1, backgroundColor: ROOT_STACK_BG },
         }}>
+        <Stack.Screen name="intro" options={{ animation: 'fade' }} />
+        <Stack.Screen name="login" options={{ animation: 'fade' }} />
+        <Stack.Screen
+          name="ReadingSessionScreen"
+          options={{ animation: 'slide_from_right' }}
+        />
         <Stack.Screen name="ReadingSession_4" options={{ animation: 'none' }} />
         <Stack.Screen
           name="CommuteReadingRecommendScreen"
@@ -40,8 +47,23 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: 'transparent' },
           }}
         />
+        <Stack.Screen
+          name="ReadingSessionFinishFlowScreen"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
+        <Stack.Screen name="AccountManagementScreen" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="ProfileEditScreen" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="OnboardingProfileEditScreen"
+          options={{ animation: 'slide_from_right' }}
+        />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
+      <AdminReturnFab />
       <StatusBar style="auto" />
     </ThemeProvider>
   );

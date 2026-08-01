@@ -1,10 +1,16 @@
 import {
   submitCommuteProfile,
+  fetchOnboardingState,
   type CommuteDay,
 } from '@/src/services/onboarding/onboardingService';
+import { getCachedCommuteProfile } from '@/src/services/onboarding/onboardingProfileCache';
+import { saveCommuteProfileForEdit } from '@/src/services/onboarding/onboardingProfileEditSave';
+import { isOnboardingEditMode } from '@/src/utils/onboardingProfileEdit';
+import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,9 +27,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// 이미지 경로
-const BUS_ICON = require('../assets/images/onboarding/daedokdan-bus.png');
 
 // 색상 상수
 const COLORS = {
@@ -86,6 +89,16 @@ const KO_DAY_TO_API: Record<DayOfWeek, CommuteDay> = {
   일: 'SUN',
 };
 
+const API_DAY_TO_KO: Record<CommuteDay, DayOfWeek> = {
+  MON: '월',
+  TUE: '화',
+  WED: '수',
+  THU: '목',
+  FRI: '금',
+  SAT: '토',
+  SUN: '일',
+};
+
 // 시간/분 옵션 생성
 const generateTimeOptions = (max: number) => {
   return Array.from({ length: max }, (_, i) => i);
@@ -93,7 +106,8 @@ const generateTimeOptions = (max: number) => {
 
 export default function Onboarding_4() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ userType?: string }>();
+  const params = useLocalSearchParams<{ userType?: string; edit?: string }>();
+  const isEditMode = isOnboardingEditMode(params.edit);
   const userType = params.userType as 'worker_student' | 'other' | undefined;
 
   const [departure, setDeparture] = useState('');
@@ -113,6 +127,34 @@ export default function Onboarding_4() {
   const [showCommuteEndHours, setShowCommuteEndHours] = useState(false);
   const [showCommuteEndMinutes, setShowCommuteEndMinutes] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isEditMode) return;
+      void (async () => {
+        try {
+          const commute = await getCachedCommuteProfile();
+          if (!commute) return;
+
+          setDeparture(commute.originName);
+          setArrival(commute.destinationName);
+          setDurationHours(commute.commuteHour);
+          setDurationMinutes(commute.commuteMinute);
+          setCommuteStartHours(commute.departHour);
+          setCommuteStartMinutes(commute.departMinute);
+          setCommuteEndHours(commute.returnHour);
+          setCommuteEndMinutes(commute.returnMinute);
+          setSelectedDays(
+            commute.commuteDays
+              .map((day) => API_DAY_TO_KO[day])
+              .filter((day): day is DayOfWeek => (DAYS as readonly string[]).includes(day)),
+          );
+        } catch {
+          // 빈 폼 유지
+        }
+      })();
+    }, [isEditMode]),
+  );
 
   const toggleDay = (day: DayOfWeek) => {
     setSelectedDays((prev) =>
@@ -144,7 +186,7 @@ export default function Onboarding_4() {
 
     setSubmitting(true);
     try {
-      await submitCommuteProfile({
+      const commutePayload = {
         name: `${origin} → ${dest}`,
         originName: origin,
         destinationName: dest,
@@ -155,7 +197,27 @@ export default function Onboarding_4() {
         departMinute: commuteStartMinutes,
         returnHour: commuteEndHours,
         returnMinute: commuteEndMinutes,
-      });
+      };
+
+      if (isEditMode) {
+        await saveCommuteProfileForEdit(commutePayload);
+        Alert.alert('저장 완료', '통근 프로필이 저장되었습니다.', [
+          { text: '확인', onPress: () => router.back() },
+        ]);
+        return;
+      }
+
+      const onboarding = await fetchOnboardingState();
+      if (onboarding?.isOnboarded) {
+        Alert.alert(
+          '안내',
+          '이미 온보딩을 완료한 계정입니다.\n계정 관리 > 온보딩 프로필 수정하기에서 변경해 주세요.',
+          [{ text: '확인', onPress: () => router.back() }],
+        );
+        return;
+      }
+
+      await submitCommuteProfile(commutePayload);
       router.push('/Onboarding_5');
     } catch (e) {
       Alert.alert(
@@ -173,12 +235,7 @@ export default function Onboarding_4() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* 상단 앱바 */}
-      <View style={styles.appBar}>
-        <View style={styles.appBarLeft}>
-          <Image source={BUS_ICON} style={styles.busIcon} resizeMode="contain" />
-          <Text style={styles.appTitle}>대독단</Text>
-        </View>
-      </View>
+      <OnboardingAppBar hideSkip={isEditMode} />
 
       {/* 회색 바 */}
       <View style={styles.divider} />
@@ -189,7 +246,9 @@ export default function Onboarding_4() {
         showsVerticalScrollIndicator={false}>
         {/* 상단 타이틀 영역 */}
         <View style={styles.headerSection}>
-          <Text style={styles.mainTitle}>통근 프로필을 입력해주세요</Text>
+          <Text style={styles.mainTitle}>
+            {isEditMode ? '통근 프로필을 수정해주세요' : '통근 프로필을 입력해주세요'}
+          </Text>
           <Text style={styles.subtitle}>
             프로필은 추후 대독단의 '프로필' 페이지에서{'\n'}
             언제든지 수정 가능합니다
@@ -501,7 +560,7 @@ export default function Onboarding_4() {
             {submitting ? (
               <ActivityIndicator color={COLORS.BUTTON_GREEN_TEXT} />
             ) : (
-              <Text style={styles.nextButtonText}>다음</Text>
+              <Text style={styles.nextButtonText}>{isEditMode ? '저장' : '다음'}</Text>
             )}
           </TouchableOpacity>
         </View>

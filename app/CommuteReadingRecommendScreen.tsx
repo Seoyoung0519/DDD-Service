@@ -26,6 +26,8 @@ import {
   consumeCommuteReadingRecommend,
   type CommuteReadingRecommendPayload,
 } from '@/src/state/commuteReadingRecommend';
+import { setReadingSessionBootstrap } from '@/src/state/activeReadingSessionBootstrap';
+import { extractCommuteEndpointCoordsFromRoute } from '@/src/utils/commuteRouteEndpoints';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -114,11 +116,7 @@ export default function CommuteReadingRecommendScreen() {
 
     try {
       setStarting(true);
-      /**
-       * place/route id는 `rec.meta`가 아니라 `ctx` 사용.
-       * API가 meta에 snake_case만 주면 meta.originPlaceId는 undefined → 세션 body에 null이 들어감.
-       */
-      await startReadingSession({
+      const session = await startReadingSession({
         userId: ctx.userId,
         userBookId: rec.userBookId,
         bookId: rec.bookId,
@@ -134,9 +132,50 @@ export default function CommuteReadingRecommendScreen() {
         destinationLat: ctx.destinationLat ?? null,
         destinationLng: ctx.destinationLng ?? null,
       });
-      Alert.alert('읽기 세션 시작', '독서를 시작해 보세요.', [
-        { text: '확인', onPress: () => router.replace('/Drawer_1') },
-      ]);
+
+      const routeCoords = extractCommuteEndpointCoordsFromRoute(session.commuteRouteJson);
+      const originLat = ctx.originLat ?? routeCoords.originLat;
+      const originLng = ctx.originLng ?? routeCoords.originLng;
+      const destinationLat = ctx.destinationLat ?? routeCoords.destinationLat;
+      const destinationLng = ctx.destinationLng ?? routeCoords.destinationLng;
+
+      if (
+        originLat == null ||
+        originLng == null ||
+        destinationLat == null ||
+        destinationLng == null
+      ) {
+        Alert.alert(
+          '위치 정보 부족',
+          '출발지·도착지 좌표를 확인할 수 없어 실시간 독서 세션을 시작할 수 없습니다.',
+        );
+        return;
+      }
+
+      setReadingSessionBootstrap({
+        sessionId: session.id,
+        userId: ctx.userId,
+        startTime: session.startedAt,
+        origin: { lat: originLat, lng: originLng, name: '출발지' },
+        destination: { lat: destinationLat, lng: destinationLng, name: '도착지' },
+        routeSegments: session.commuteRouteJson?.segments ?? [],
+        plannedPages: rec.pagesToRead,
+        travelMinutes:
+          session.commuteTotalMinutes ??
+          session.commuteRouteJson?.totalMinutes ??
+          rec.availableMinutes ??
+          ctx.availableMinutes ??
+          0,
+        bookTitle: rec.title,
+        bookAuthors: rec.authors?.join(', ') ?? '',
+        bookCoverUrl: rec.coverUrl,
+        bookId: rec.bookId,
+        userBookId: rec.userBookId,
+        startPage: rec.startPage,
+        endPage: rec.endPage,
+      });
+
+      router.replace('/ReadingSessionScreen');
     } catch (e: unknown) {
       Alert.alert(
         '세션 시작 실패',

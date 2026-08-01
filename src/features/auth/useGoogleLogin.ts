@@ -14,7 +14,8 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 
 import { GOOGLE_WEB_CLIENT_ID } from '@/src/constants/auth';
 
-import { loginWithGoogle, saveGoogleAccessToken } from '@/src/services/auth/authService';
+import { loginWithGoogle, saveGoogleAccessToken, saveGoogleIdToken } from '@/src/services/auth/authService';
+import { syncExtendedApiSession } from '@/src/utils/extendedApiAuth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -60,9 +61,18 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
         if (result.accessToken) {
           await saveGoogleAccessToken(result.accessToken);
         }
+        if (result.idToken) {
+          await saveGoogleIdToken(result.idToken);
+        }
 
         // 백엔드로 idToken 전달
         const authResponse = await loginWithGoogle({
+          idToken: result.idToken,
+          platform: result.platform,
+        });
+
+        await syncExtendedApiSession({
+          loginJwt: authResponse.accessToken,
           idToken: result.idToken,
           platform: result.platform,
         });

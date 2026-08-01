@@ -1,5 +1,5 @@
 /**
- * 내서재 — UI 시안 기반 화면 (목업 데이터, 추후 API 연동 가능)
+ * 내서재 — 서재 요약·캘린더·통계 + 프로필 조회 API 연동
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -34,9 +34,18 @@ import {
   type LibrarySummaryOut,
   type WishBookOut,
 } from '@/src/api/library';
+import {
+  formatOnboardedAtLabel,
+  getUserProfile,
+  type UserProfileResponse,
+} from '@/src/api/userProfile';
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
+import { NotificationBellButton } from '@/src/components/header/NotificationBellButton';
+import { ProfileHeaderButton } from '@/src/components/header/ProfileHeaderButton';
 import { BookReviewWriteModal } from '@/src/components/review/BookReviewWriteModal';
 import { SelectBookForReviewModal } from '@/src/components/review/SelectBookForReviewModal';
 import { StatsCard } from '@/src/components/reading-stats/StatsCard';
+import { getUserAvatarSource, isUserAvatarId } from '@/src/constants/userAvatars';
 import type { CompletedBookItem } from '@/src/data/completedBooks';
 import {
   EMPTY_READING_STATS,
@@ -44,8 +53,6 @@ import {
   type ReadingStatsData,
 } from '@/src/components/reading-stats/types';
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
-const BELL_ICON = require('../assets/images/drawer/bell.png');
-const BOOKSHELF_IMG = require('../assets/images/drawer/bookshelf.png');
 const READING_RECORD_IMG = require('../assets/images/mylibrary/독서기록.png');
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -104,20 +111,23 @@ export default function MyLibraryScreen() {
   const [calendarLoadFailed, setCalendarLoadFailed] = useState(false);
   /** GET /library/stats → StatsCard */
   const [readingStats, setReadingStats] = useState<ReadingStatsData>(EMPTY_READING_STATS);
+  /** GET /user/profile — 상단 프로필 영역 */
+  const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
 
-  /** 요약 + 완독 + 찜 + 캘린더 + 대독 통계 병렬 */
+  /** 요약 + 완독 + 찜 + 캘린더 + 대독 통계 + 프로필 병렬 */
   const loadLibraryPageData = useCallback(async () => {
     setSummaryLoading(true);
     const now = new Date();
     const calY = now.getFullYear();
     const calM = now.getMonth() + 1;
 
-    const [sumRes, compRes, wishRes, calRes, statsRes] = await Promise.allSettled([
+    const [sumRes, compRes, wishRes, calRes, statsRes, profileRes] = await Promise.allSettled([
       fetchLibrarySummary(),
       fetchLibraryCompletedBooks(),
       fetchLibraryWishlist(),
       fetchLibraryCalendar(calY, calM),
       fetchLibraryStats(),
+      getUserProfile(),
     ]);
     if (sumRes.status === 'fulfilled') {
       setLibrarySummary(sumRes.value);
@@ -154,6 +164,14 @@ export default function MyLibraryScreen() {
         console.warn('[MyLibraryScreen] 독서 통계 조회 실패:', statsRes.reason);
       }
       setReadingStats(EMPTY_READING_STATS);
+    }
+    if (profileRes.status === 'fulfilled') {
+      setUserProfile(profileRes.value);
+    } else {
+      if (__DEV__) {
+        console.warn('[MyLibraryScreen] 프로필 조회 실패:', profileRes.reason);
+      }
+      setUserProfile(null);
     }
     setSummaryLoading(false);
   }, []);
@@ -198,6 +216,19 @@ export default function MyLibraryScreen() {
     return rows;
   }, [calendarCells]);
 
+  const profileNickname = userProfile?.nickname?.trim() || '닉네임 없음';
+  const profileJoinLine = formatOnboardedAtLabel(userProfile?.onboardedAt);
+  // 선택한 캐릭터(avatarId) 우선 — SNS avatarUrl보다 우선 표시
+  const profileAvatarSource = useMemo(() => {
+    if (isUserAvatarId(userProfile?.avatarId)) {
+      return getUserAvatarSource(userProfile.avatarId);
+    }
+    if (userProfile?.avatarUrl?.trim()) {
+      return { uri: userProfile.avatarUrl.trim() };
+    }
+    return getUserAvatarSource(userProfile?.avatarId);
+  }, [userProfile]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* 상단 헤더 (투데이/검색과 동일 패턴) */}
@@ -207,18 +238,9 @@ export default function MyLibraryScreen() {
           <Text style={styles.logoText}>대독단</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="person-circle-outline" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <ExpoImage source={BELL_ICON} style={styles.bellIcon} contentFit="contain" />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>10+</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton} onPress={() => router.push('/Drawer_1')}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <ProfileHeaderButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
+          <NotificationBellButton style={styles.headerIconButton} />
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 
@@ -228,14 +250,14 @@ export default function MyLibraryScreen() {
         showsVerticalScrollIndicator={false}>
         <Text style={styles.pageTitle}>내서재</Text>
 
-        {/* 프로필 */}
+        {/* 프로필 — GET /user/profile */}
         <View style={styles.profileRow}>
           <View style={styles.avatarWrap}>
-            <Image source={BOOKSHELF_IMG} style={styles.avatarImg} resizeMode="cover" />
+            <Image source={profileAvatarSource} style={styles.avatarImg} resizeMode="cover" />
           </View>
           <View style={styles.profileTextCol}>
-            <Text style={styles.nickname}>{'\u201C독서러브버그\u201D'}</Text>
-            <Text style={styles.joinLine}>가입일자 2025년 10월 2일부터 함께 독서 중</Text>
+            <Text style={styles.nickname}>{`\u201C${profileNickname}\u201D`}</Text>
+            <Text style={styles.joinLine}>{profileJoinLine}</Text>
           </View>
         </View>
 

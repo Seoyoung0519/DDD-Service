@@ -2,6 +2,8 @@
  * `CommuteReadingRecommendScreen`으로 전달.
  * 분량 추천 API는 화면 진입 후 호출 — `availableMinutes` 등은 경로 선택 결과에서 전달.
  */
+import type { CurrentReadingItem } from '@/src/types/reading';
+
 export type CommuteReadingRecommendPayload = {
   userId: string;
   bookId: string;
@@ -16,6 +18,11 @@ export type CommuteReadingRecommendPayload = {
   originLng?: number;
   destinationLat?: number;
   destinationLng?: number;
+  /** 경로 조회 스킵·데모 플로우 — 분량 추천 mock에 사용 */
+  demoBook?: Pick<
+    CurrentReadingItem,
+    'userBookId' | 'bookId' | 'title' | 'authors' | 'coverUrl' | 'currentPage' | 'pageCount'
+  >;
 };
 
 let pending: CommuteReadingRecommendPayload | null = null;

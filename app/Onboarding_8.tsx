@@ -1,3 +1,4 @@
+import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -14,7 +15,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
-const BUS_ICON = require('../assets/images/onboarding/daedokdan-bus.png');
 const DAEDOKDAN_LOGO = require('../assets/images/onboarding/대독단로고.png');
 
 // 색상 상수
@@ -65,12 +65,7 @@ export default function Onboarding_8() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* 상단 앱바 */}
-      <View style={styles.appBar}>
-        <View style={styles.appBarLeft}>
-          <Image source={BUS_ICON} style={styles.busIcon} resizeMode="contain" />
-          <Text style={styles.appTitle}>대독단</Text>
-        </View>
-      </View>
+      <OnboardingAppBar />
 
       {/* 회색 바 */}
       <View style={styles.divider} />

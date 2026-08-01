@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 import { type BookshelfItem } from '../src/api/bookshelf';
 import { searchBooks, type SearchBookItem } from '../src/api/search';
 import AddToShelfModal from './AddToShelfModal';
@@ -264,9 +265,7 @@ export default function AddBookScreen() {
               <Text style={styles.badgeText}>0</Text>
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIconButton}>
-            <Ionicons name="menu" size={24} color={COLORS.TEXT} />
-          </TouchableOpacity>
+          <AppMenuButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
         </View>
       </View>
 

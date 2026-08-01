@@ -3,6 +3,10 @@ import {
   ONBOARDING_READING_TEST_STORAGE_KEY,
   type ReadingTestStartResponse,
 } from '@/src/services/onboarding/onboardingService';
+import { isOnboardingAlreadyCompleteError } from '@/src/services/onboarding/onboardingProfileEditSave';
+import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
+import { OnboardingReadingTestGateLoading } from '@/src/components/onboarding/OnboardingReadingTestGateLoading';
+import { useOnboardingReadingTestGate } from '@/src/utils/onboardingProfileEdit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -21,9 +25,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// 이미지 경로
-const BUS_ICON = require('../assets/images/onboarding/daedokdan-bus.png');
 
 // 색상 상수
 const COLORS = {
@@ -113,6 +114,7 @@ type QuestionWithAnswer = Question & {
 
 export default function Onboarding_6() {
   const router = useRouter();
+  const readingTestGate = useOnboardingReadingTestGate(router);
   const [selectedAnswers, setSelectedAnswers] = useState<{ [questionId: number]: number }>({});
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
@@ -196,6 +198,17 @@ export default function Onboarding_6() {
 
     const totalTimeSeconds = Math.floor((Date.now() - startTime) / 1000);
 
+    const goToResult = (correctCount: number, totalQuestions: number) => {
+      router.push({
+        pathname: '/Onboarding_7',
+        params: {
+          timeTaken: totalTimeSeconds.toString(),
+          correctCount: correctCount.toString(),
+          totalQuestions: totalQuestions.toString(),
+        },
+      });
+    };
+
     if (apiPayload) {
       const userChoice = selectedAnswers[1];
       if (userChoice === undefined) return;
@@ -208,15 +221,15 @@ export default function Onboarding_6() {
           userChoice,
         });
         await AsyncStorage.removeItem(ONBOARDING_READING_TEST_STORAGE_KEY);
-        router.push({
-          pathname: '/Onboarding_7',
-          params: {
-            timeTaken: totalTimeSeconds.toString(),
-            correctCount: finishRes.isCorrect ? '1' : '0',
-            totalQuestions: '1',
-          },
-        });
+        goToResult(finishRes.isCorrect ? 1 : 0, 1);
       } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // finish API가 온보딩 완료로 표시해도 결과 화면까지는 진행
+        if (isOnboardingAlreadyCompleteError(msg)) {
+          await AsyncStorage.removeItem(ONBOARDING_READING_TEST_STORAGE_KEY);
+          goToResult(0, 1);
+          return;
+        }
         Alert.alert(
           '오류',
           e instanceof Error ? e.message : '테스트 제출에 실패했습니다. 다시 시도해주세요.',
@@ -235,20 +248,21 @@ export default function Onboarding_6() {
       }
     });
 
-    router.push({
-      pathname: '/Onboarding_7',
-      params: {
-        timeTaken: totalTimeSeconds.toString(),
-        correctCount: correctCount.toString(),
-        totalQuestions: questions.length.toString(),
-      },
-    });
+    goToResult(correctCount, questions.length);
   };
 
   const getOptionNumber = (index: number) => {
     const numbers = ['①', '②', '③', '④', '⑤', '⑥'];
     return numbers[index] ?? `${index + 1}.`;
   };
+
+  if (readingTestGate !== 'allowed') {
+    return (
+      <SafeAreaView style={[styles.container, styles.hydrateCenter]} edges={['top', 'bottom']}>
+        <OnboardingReadingTestGateLoading />
+      </SafeAreaView>
+    );
+  }
 
   if (hydrating) {
     return (
@@ -261,12 +275,7 @@ export default function Onboarding_6() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* 상단 앱바 */}
-      <View style={styles.appBar}>
-        <View style={styles.appBarLeft}>
-          <Image source={BUS_ICON} style={styles.busIcon} resizeMode="contain" />
-          <Text style={styles.appTitle}>대독단</Text>
-        </View>
-      </View>
+      <OnboardingAppBar />
 
       {/* 회색 바 */}
       <View style={styles.divider} />
@@ -294,7 +303,7 @@ export default function Onboarding_6() {
             이해도 확인 문제<Text style={styles.asterisk}>*</Text>
           </Text>
 
-          {QUESTIONS.map((question) => (
+          {questions.map((question) => (
             <View key={question.id} style={styles.questionContainer}>
               <Text style={styles.questionText}>
                 Q{question.id}. {question.text}
