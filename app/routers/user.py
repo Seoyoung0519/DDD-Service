@@ -21,11 +21,18 @@ def get_user_profile(
     sb: Client = Depends(get_db_client),
 ):
     user_id = auth_ctx["user_id"]
-    email = auth_ctx["email"]
+    email = auth_ctx.get("email")
 
-    # users 보장
+    user_data = {
+        "id": user_id,
+        "status": "active",
+    }
+
+    if email:
+        user_data["email"] = email
+
     sb.table("users").upsert(
-        {"id": user_id, "email": email, "status": "active"},
+        user_data,
         on_conflict="id"
     ).execute()
 
