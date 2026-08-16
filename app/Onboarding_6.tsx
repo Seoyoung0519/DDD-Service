@@ -1,6 +1,8 @@
 import {
   finishReadingTest,
   ONBOARDING_READING_TEST_STORAGE_KEY,
+  parseReadingTestStartResponse,
+  toReadingTestUserChoice,
   type ReadingTestStartResponse,
 } from '@/src/services/onboarding/onboardingService';
 import { isOnboardingAlreadyCompleteError } from '@/src/services/onboarding/onboardingProfileEditSave';
@@ -132,16 +134,18 @@ export default function Onboarding_6() {
         const raw = await AsyncStorage.getItem(ONBOARDING_READING_TEST_STORAGE_KEY);
         if (!alive) return;
         if (raw) {
-          const data = JSON.parse(raw) as ReadingTestStartResponse;
-          setApiPayload(data);
-          setPassageBody(data.body);
-          setQuestions([
-            {
-              id: 1,
-              text: data.question,
-              options: data.choices.map((text, i) => ({ id: i, text })),
-            },
-          ]);
+          const data = parseReadingTestStartResponse(JSON.parse(raw));
+          if (data) {
+            setApiPayload(data);
+            setPassageBody(data.body);
+            setQuestions([
+              {
+                id: 1,
+                text: data.question,
+                options: data.choices.map((text, i) => ({ id: i + 1, text })),
+              },
+            ]);
+          }
         }
       } catch {
         // 로컬 기본 지문 유지
@@ -210,8 +214,13 @@ export default function Onboarding_6() {
     };
 
     if (apiPayload) {
-      const userChoice = selectedAnswers[1];
-      if (userChoice === undefined) return;
+      const selectedOptionId = selectedAnswers[1];
+      if (selectedOptionId === undefined) return;
+      const userChoice = toReadingTestUserChoice(
+        selectedOptionId,
+        apiPayload.choices.length,
+      );
+      if (userChoice == null) return;
 
       setSubmitting(true);
       try {

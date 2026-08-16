@@ -135,7 +135,7 @@ client.interceptors.response.use(
     // 네트워크 오류
     if (!error.response) {
       if (!isSuppressApiErrorLog(error.config)) {
-        console.error('[API] Network Error:', error.message);
+        console.error('[API] Network Error');
         if (Platform.OS !== 'web') {
           Alert.alert('오류', '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.');
         }
@@ -156,7 +156,7 @@ client.interceptors.response.use(
     }
 
     if (!isSuppressApiErrorLog(error.config)) {
-      console.error(`[API] Error ${status}:`, logLine);
+      console.error(`[API] Error status=${status}`);
     }
 
     const isApiKeyAuthFailed =

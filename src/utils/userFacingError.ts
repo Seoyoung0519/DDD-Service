@@ -1,7 +1,8 @@
 /**
  * 프로덕션에서 사용자에게는 **미리 정의한 안내만** 보이고,
- * 원문 에러(메시지·스택·API 본문)는 `reportAppError`로만 남깁니다 (__DEV__ 콘솔 / Sentry 등).
+ * 원문 에러(메시지·스택·API 본문)는 `reportAppError`로만 남깁니다.
  */
+import { logError } from '@/src/utils/appLog';
 
 export const USER_FACING = {
   /** 일반 실패 */
@@ -50,7 +51,7 @@ export function reportAppError(error: unknown, context: ReportAppErrorContext = 
   const scope = context.scope ?? 'App';
 
   if (__DEV__) {
-    console.error(`[AppError:${scope}]`, err.message, err.stack, context.extra, error);
+    logError('AppError', `${scope} ${err.name}`);
     return;
   }
 

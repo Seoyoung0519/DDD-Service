@@ -18,6 +18,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -147,17 +148,36 @@ export default function ReadingSession_2() {
     return authors.join(', ');
   };
 
-  /** 로딩 중: 전체 반투명 검정 + 스피너 (ReadingSession_3와 동일) */
+  /** 로딩 중에도 읽을 책 PICK 카드만 유지하고, 카드 안에서 목록을 불러옵니다. */
   if (loading) {
     return (
-      <SafeAreaView style={styles.fullScreenLoading} edges={['top', 'bottom']}>
-        <ActivityIndicator size="large" color={COLORS.PRIMARY} />
-      </SafeAreaView>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>읽을 책 PICK</Text>
+            <View style={styles.modalHeaderButtons}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleClose}
+                activeOpacity={0.7}>
+                <Text style={styles.closeButtonText}>이전</Text>
+              </TouchableOpacity>
+              <View style={[styles.nextButton, styles.nextButtonDisabled]}>
+                <Text style={[styles.nextButtonText, styles.nextButtonTextDisabled]}>다음</Text>
+              </View>
+            </View>
+          </View>
+          <Text style={styles.subtitle}>현재 독서 중인 책</Text>
+          <View style={styles.pickLoadingBody}>
+            <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+          </View>
+        </View>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* 상단 헤더 */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -326,7 +346,7 @@ export default function ReadingSession_2() {
       </Modal>
 
       {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => {
@@ -415,7 +435,7 @@ export default function ReadingSession_2() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }
@@ -527,6 +547,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.MODAL_OVERLAY,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  pickLoadingBody: {
+    minHeight: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalContainer: {
     backgroundColor: COLORS.MODAL_BG,

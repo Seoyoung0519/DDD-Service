@@ -115,6 +115,56 @@ export interface ReadingTestSkipResponse {
   isOnboarded: boolean;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function str(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function num(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : Number(value) || 0;
+}
+
+/**
+ * start 응답을 정규화합니다.
+ * `userChoice`는 서버가 1~4(선지 번호)를 기대합니다. 보기 id도 동일하게 1부터 씁니다.
+ */
+export function parseReadingTestStartResponse(raw: unknown): ReadingTestStartResponse | null {
+  const root = asRecord(raw);
+  if (!root) return null;
+  const src = asRecord(root.data) ?? root;
+  const testId = str(src.testId ?? src.test_id);
+  const textId = str(src.textId ?? src.text_id);
+  const body = str(src.body ?? src.passage ?? src.text ?? src.content);
+  const question = str(src.question ?? src.prompt);
+  const rawChoices = src.choices ?? src.options;
+  const choices = Array.isArray(rawChoices)
+    ? rawChoices.map((item) => str(item)).filter((item) => item.length > 0)
+    : [];
+  if (!testId || !body || !question || choices.length === 0) return null;
+  return {
+    testId,
+    textId,
+    body,
+    syllableCount: num(src.syllableCount ?? src.syllable_count),
+    question,
+    choices,
+  };
+}
+
+/** 화면 선지 번호(1~4)로 서버 `userChoice`를 맞춥니다. */
+export function toReadingTestUserChoice(optionId: number, choiceCount: number): number | null {
+  if (!Number.isInteger(optionId)) return null;
+  const max = Math.min(Math.max(choiceCount, 1), 4);
+  if (optionId >= 1 && optionId <= max) return optionId;
+  if (optionId >= 0 && optionId < max) return optionId + 1;
+  return null;
+}
+
 async function authedOnboardingFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const token = await getAccessToken();
   if (!token) {
@@ -245,7 +295,11 @@ export async function startReadingTest(): Promise<ReadingTestStartResponse> {
   const res = await authedOnboardingFetch('/onboarding/reading-test/start', {
     method: 'POST',
   });
-  return (await res.json()) as ReadingTestStartResponse;
+  const parsed = parseReadingTestStartResponse(await res.json());
+  if (!parsed) {
+    throw new Error('독서 테스트 지문·문제를 불러오지 못했습니다. 다시 시도해 주세요.');
+  }
+  return parsed;
 }
 
 export async function finishReadingTest(

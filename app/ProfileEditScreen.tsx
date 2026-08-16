@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 import {
   checkNicknameAvailable,
@@ -242,7 +243,10 @@ export default function ProfileEditScreen() {
           </Pressable>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>프로필 이미지</Text>
           <View style={styles.avatarPreviewWrap}>
             <Image
@@ -292,7 +296,7 @@ export default function ProfileEditScreen() {
           ) : (
             <Text style={styles.hint}>1~20자, 공백은 앞뒤에서 제거됩니다</Text>
           )}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
     </SafeAreaView>
   );

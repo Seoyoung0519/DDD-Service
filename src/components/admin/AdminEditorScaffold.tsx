@@ -5,12 +5,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 type Props = {
   title: string;
@@ -55,12 +55,13 @@ export function AdminEditorScaffold({
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
+          <KeyboardAwareScrollView
+            style={styles.flex}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
             {children}
-          </ScrollView>
+          </KeyboardAwareScrollView>
           <View style={styles.bottom}>
             <Pressable
               style={[styles.saveButton, (saveDisabled || saving) && styles.disabled]}

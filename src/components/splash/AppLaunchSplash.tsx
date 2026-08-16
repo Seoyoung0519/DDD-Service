@@ -2,7 +2,7 @@ import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const SPLASH_LOGO = require('../../../assets/images/splash/splash-logo.png');
+const SPLASH_LOGO = require('../../../assets/images/brand/daedokdan-logo.png');
 
 const COLORS = {
   background: '#E8F3ED',
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: 200,
-    height: 220,
+    height: 200,
     marginBottom: 28,
   },
   tagline: {

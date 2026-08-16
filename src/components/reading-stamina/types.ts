@@ -1,3 +1,5 @@
+import { toHighResCoverUrl } from '@/src/utils/coverUrl';
+
 export type ReadingStaminaRangeKey = '100' | '200' | '400' | '400plus';
 
 /** API `range` 쿼리 값 (문서: 0-100, 100-200, 200-400, 400+) */
@@ -73,7 +75,8 @@ export function normalizeStaminaBook(raw: unknown): ReadingStaminaBook | null {
     id,
     title,
     author: formatStaminaAuthor(o.authors ?? o.author) || ' ',
-    coverUrl: thumb != null && String(thumb).trim() ? String(thumb).trim() : '',
+    coverUrl:
+      thumb != null && String(thumb).trim() ? toHighResCoverUrl(String(thumb).trim()) : '',
     pageCount: Number.isFinite(pageCount) ? pageCount : 0,
     aladinItemId:
       aladinRaw != null && String(aladinRaw).trim() ? String(aladinRaw).trim() : null,

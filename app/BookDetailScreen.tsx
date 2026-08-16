@@ -25,6 +25,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 import {
     getBookDetail,
     getBookDetailOrNotFound,
@@ -235,11 +236,6 @@ export default function BookDetailScreen() {
       const rawBookId = typeof params.bookId === 'string' ? params.bookId.trim() : '';
       /** 알라딘 품번이 있으면 검색·상세 id로 우선 사용 (찜 API 연동) */
       const effectiveBookId = rawAladin || rawBookId;
-      if (!effectiveBookId) {
-        setLoading(false);
-        return;
-      }
-
       const skipRecent = params.skipRecentBook === 'true';
       const titleHint =
         typeof params.bookTitle === 'string' ? params.bookTitle.trim() : '';
@@ -247,6 +243,28 @@ export default function BookDetailScreen() {
         typeof params.bookAuthor === 'string' && params.bookAuthor.trim().length > 0
           ? params.bookAuthor.trim()
           : undefined;
+
+      if (!effectiveBookId) {
+        if (!titleHint) {
+          setLoading(false);
+          setError(userFacingMessage('bookLoad'));
+          return;
+        }
+        try {
+          setLoading(true);
+          setError(null);
+          const resolvedId = await hydrateBookForDetailViaSearch('', titleHint, authorHint);
+          const response = await getBookDetail(resolvedId, skipRecent);
+          setBook(transformBookData(response.data));
+        } catch (error: unknown) {
+          reportAppError(error, { scope: 'BookDetail.loadByTitle' });
+          setError(userFacingMessage('bookLoad'));
+          setBook(null);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
 
       try {
         setLoading(true);
@@ -312,12 +330,6 @@ export default function BookDetailScreen() {
   // 뒤로가기 핸들러
   const handlePressBack = () => {
     router.back();
-  };
-
-  // 공유 핸들러
-  const handlePressShare = () => {
-    // TODO: 공유 기능 구현
-    console.log('[BookDetail] 공유 버튼 클릭');
   };
 
   /**
@@ -573,9 +585,6 @@ export default function BookDetailScreen() {
             <TouchableOpacity onPress={handlePressBack} style={styles.headerButton} activeOpacity={0.7}>
               <Ionicons name="chevron-back" size={24} color={COLORS.TEXT} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handlePressShare} style={styles.headerButton} activeOpacity={0.7}>
-              <Ionicons name="share-outline" size={24} color={COLORS.TEXT} />
-            </TouchableOpacity>
           </View>
 
           <ScrollView
@@ -656,22 +665,40 @@ export default function BookDetailScreen() {
         <TouchableOpacity
           style={styles.bottomButtonLeft}
           onPress={handleAddToWishlist}
-          activeOpacity={0.7}>
-          <Ionicons name="heart-outline" size={20} color={COLORS.TEXT} style={styles.buttonIcon} />
-          <Text style={styles.bottomButtonLeftText}>찜한 도서에 담기</Text>
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="찜한 도서에 담기">
+          <Ionicons name="heart-outline" size={18} color={COLORS.TEXT} />
+          <Text
+            style={styles.bottomButtonLeftText}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            maxFontSizeMultiplier={1.15}>
+            찜한 도서에 담기
+          </Text>
         </TouchableOpacity>
         <View style={styles.buttonDivider} />
         <TouchableOpacity
           style={styles.bottomButtonRight}
           onPress={handleOpenStore}
-          activeOpacity={0.7}>
-          <Ionicons name="link-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-          <Text style={styles.bottomButtonRightText}>판매처로 바로가기</Text>
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="판매처로 바로가기">
+          <Ionicons name="link-outline" size={18} color="#FFFFFF" />
+          <Text
+            style={styles.bottomButtonRightText}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            maxFontSizeMultiplier={1.15}>
+            판매처로 바로가기
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => {
@@ -730,7 +757,7 @@ export default function BookDetailScreen() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
       {reportTarget ? (
         <ReportActionSheet
           visible
@@ -1073,7 +1100,7 @@ const styles = StyleSheet.create({
   // 하단 버튼 바
   bottomButtonBar: {
     flexDirection: 'row',
-    height: 58,
+    minHeight: 58,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,
@@ -1083,6 +1110,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     backgroundColor: COLORS.BACKGROUND,
   },
   bottomButtonRight: {
@@ -1090,23 +1120,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     backgroundColor: COLORS.DARK_BUTTON,
   },
   buttonDivider: {
     width: 1,
     backgroundColor: COLORS.BORDER,
   },
-  buttonIcon: {
-    marginRight: 6,
-  },
   bottomButtonLeftText: {
-    fontSize: 15,
+    flexShrink: 1,
+    fontSize: 13,
     fontFamily: FONTS.MEDIUM,
     fontWeight: '500',
     color: COLORS.TEXT,
   },
   bottomButtonRightText: {
-    fontSize: 15,
+    flexShrink: 1,
+    fontSize: 13,
     fontFamily: FONTS.MEDIUM,
     fontWeight: '500',
     color: '#FFFFFF',

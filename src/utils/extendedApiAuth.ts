@@ -283,7 +283,7 @@ export async function fetchExtendedApiWithAuth(
     if (res.ok) {
       if (__DEV__) {
         const kind = describeTokenKind(token, extended, idToken);
-        console.log(`[extendedApiAuth] OK (${kind}) ${url}`);
+        console.log(`[extendedApiAuth] OK (${kind})`);
       }
       return res;
     }
@@ -300,9 +300,7 @@ export async function fetchExtendedApiWithAuth(
 
   if (__DEV__) {
     console.warn('[extendedApiAuth] all bearer candidates rejected', {
-      url,
       status: lastStatus,
-      body: lastBody.slice(0, 120),
     });
   }
 

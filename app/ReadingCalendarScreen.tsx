@@ -20,6 +20,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 
 import {
   calendarDayHasReading,
@@ -112,6 +113,9 @@ export default function ReadingCalendarScreen() {
   const [calendarLoading, setCalendarLoading] = useState(true);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [deletingProofId, setDeletingProofId] = useState<string | null>(null);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteSuccessVisible, setDeleteSuccessVisible] = useState(false);
+  const [pendingDeleteProof, setPendingDeleteProof] = useState<ProofListItem | null>(null);
 
   const year = viewDate.getFullYear();
   const monthIndex = viewDate.getMonth();
@@ -256,19 +260,20 @@ export default function ReadingCalendarScreen() {
       }
       return;
     }
+    setPendingDeleteProof(proof);
+    setDeleteConfirmVisible(true);
+  };
 
-    Alert.alert(
-      '인증샷 삭제',
-      '이 인증샷을 삭제할까요? 삭제 후에는 복구할 수 없습니다.',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: () => void executeDeleteProof(proofId, selectedDay),
-        },
-      ],
-    );
+  const closeDeleteConfirm = () => {
+    if (deletingProofId) return;
+    setDeleteConfirmVisible(false);
+    setPendingDeleteProof(null);
+  };
+
+  const handleConfirmDeleteProof = () => {
+    const proofId = pendingDeleteProof?.id?.trim();
+    if (!proofId || selectedDay == null || deletingProofId) return;
+    void executeDeleteProof(proofId, selectedDay);
   };
 
   const executeDeleteProof = async (proofId: string, day: number) => {
@@ -297,7 +302,9 @@ export default function ReadingCalendarScreen() {
 
         return nextProofs;
       });
-      Alert.alert('인증샷을 삭제했습니다');
+      setDeleteConfirmVisible(false);
+      setPendingDeleteProof(null);
+      setDeleteSuccessVisible(true);
     } catch (error) {
       Alert.alert(
         '삭제 실패',
@@ -439,17 +446,16 @@ export default function ReadingCalendarScreen() {
                       오늘의 기록
                     </Text>
                     <TouchableOpacity
-                      style={styles.dayModalDeleteBtn}
+                      style={styles.dayModalDeleteIconBtn}
                       onPress={() => confirmDeleteProof(selectedDayProof)}
                       disabled={deletingProofId != null}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="인증샷 삭제">
                       {deletingProofId === selectedDayProof.id ? (
-                        <ActivityIndicator size="small" color="#B33B3B" />
+                        <ActivityIndicator size="small" color={COLORS.PRIMARY} />
                       ) : (
-                        <>
-                          <Ionicons name="trash-outline" size={16} color="#B33B3B" />
-                          <Text style={styles.dayModalDeleteBtnText}>삭제</Text>
-                        </>
+                        <Ionicons name="trash-outline" size={20} color={COLORS.PRIMARY} />
                       )}
                     </TouchableOpacity>
                   </View>
@@ -472,7 +478,64 @@ export default function ReadingCalendarScreen() {
         </Pressable>
       </Modal>
 
-      <View style={styles.bottomNav}>
+      <Modal
+        visible={deleteConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDeleteConfirm}>
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>인증샷을 삭제할까요?</Text>
+            <Text style={styles.confirmBody}>
+              삭제 후에는 복구할 수 없습니다.
+            </Text>
+            <View style={styles.confirmBtnRow}>
+              <Pressable
+                style={styles.confirmCancelBtn}
+                onPress={closeDeleteConfirm}
+                disabled={deletingProofId != null}
+                accessibilityRole="button">
+                <Text style={styles.confirmCancelText}>취소</Text>
+              </Pressable>
+              <Pressable
+                style={styles.confirmDeleteBtn}
+                onPress={handleConfirmDeleteProof}
+                disabled={deletingProofId != null}
+                accessibilityRole="button">
+                {deletingProofId ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.confirmDeleteText}>삭제</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={deleteSuccessVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteSuccessVisible(false)}>
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmCard}>
+            <Text style={[styles.confirmTitle, styles.successTitle]}>
+              인증샷을 삭제했습니다
+            </Text>
+            <View style={styles.confirmBtnRow}>
+              <Pressable
+                style={styles.successOkBtn}
+                onPress={() => setDeleteSuccessVisible(false)}
+                accessibilityRole="button">
+                <Text style={styles.confirmDeleteText}>확인</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <AppBottomNavBar>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/Drawer_1')}>
           <Image source={TODAY_ICON} style={styles.navIcon} resizeMode="contain" />
           <Text style={styles.navLabel}>투데이</Text>
@@ -495,7 +558,7 @@ export default function ReadingCalendarScreen() {
           />
           <Text style={[styles.navLabel, styles.navLabelActive]}>내서재</Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }
@@ -759,29 +822,16 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT,
   },
   dayModalRecordLabel: {
-    marginTop: 16,
+    marginTop: 0,
     marginBottom: 0,
   },
   dayModalRecordHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 16,
     marginBottom: 8,
     minHeight: 28,
-  },
-  dayModalDeleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 16,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  dayModalDeleteBtnText: {
-    fontSize: 13,
-    fontFamily: FONTS.MEDIUM,
-    fontWeight: '600',
-    color: '#B33B3B',
   },
   dayModalRecordImage: {
     width: '100%',
@@ -789,6 +839,92 @@ const styles = StyleSheet.create({
     maxHeight: 320,
     borderRadius: 12,
     backgroundColor: '#EEE',
+  },
+  dayModalDeleteIconBtn: {
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 28,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    overflow: 'hidden',
+    alignItems: 'center',
+    paddingTop: 28,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.BOLD,
+    fontWeight: '700',
+    color: COLORS.TEXT,
+    marginBottom: 14,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  confirmBody: {
+    fontSize: 14,
+    fontFamily: FONTS.REGULAR,
+    color: COLORS.SUBTITLE,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 24,
+    marginBottom: 28,
+  },
+  confirmBtnRow: {
+    flexDirection: 'row',
+    width: '100%',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#DDDDDD',
+  },
+  confirmCancelBtn: {
+    flex: 1,
+    backgroundColor: '#E8E8E8',
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomLeftRadius: 20,
+  },
+  confirmCancelText: {
+    fontSize: 16,
+    fontFamily: FONTS.MEDIUM,
+    color: COLORS.TEXT,
+  },
+  confirmDeleteBtn: {
+    flex: 1,
+    backgroundColor: COLORS.PRIMARY,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomRightRadius: 20,
+    minHeight: 52,
+  },
+  confirmDeleteText: {
+    fontSize: 16,
+    fontFamily: FONTS.BOLD,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  successTitle: {
+    marginBottom: 28,
+  },
+  successOkBtn: {
+    flex: 1,
+    backgroundColor: COLORS.PRIMARY,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    minHeight: 52,
   },
   dayModalCloseBtn: {
     width: '100%',

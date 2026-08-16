@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createAdminInquiry } from '@/src/api/inquiries';
 import { AdminRouteGuard } from '@/src/components/admin/AdminRouteGuard';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 function AdminInquiryEditorContent() {
   const router = useRouter();
@@ -61,7 +61,7 @@ function AdminInquiryEditorContent() {
         <View style={styles.headerSpacer} />
       </View>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.description}>사용자를 대신하여 문의를 등록합니다.</Text>
           <Text style={styles.label}>사용자 ID *</Text>
           <TextInput
@@ -92,7 +92,7 @@ function AdminInquiryEditorContent() {
             maxLength={2000}
             textAlignVertical="top"
           />
-        </ScrollView>
+        </KeyboardAwareScrollView>
         <View style={styles.bottom}>
           <Pressable style={styles.saveButton} disabled={saving} onPress={() => void save()}>
             {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>문의 등록</Text>}

@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,6 +22,7 @@ import {
   type InquiryStatus,
 } from '@/src/api/inquiries';
 import { AdminRouteGuard } from '@/src/components/admin/AdminRouteGuard';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 const STATUS_OPTIONS: { value: InquiryStatus; label: string }[] = [
   { value: 'open', label: '답변 대기' },
@@ -142,7 +142,7 @@ function AdminInquiryDetailContent() {
         </View>
       ) : (
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>문의 정보</Text>
               <Text style={styles.meta}>문의자  {item.user_id || '-'}</Text>
@@ -189,7 +189,7 @@ function AdminInquiryDetailContent() {
                 </Text>
               ) : null}
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
           <View style={styles.bottom}>
             <Pressable style={styles.saveButton} disabled={saving} onPress={() => void save()}>
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>답변 저장</Text>}

@@ -19,6 +19,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 import { uploadReadingProof } from '@/src/api/proofUpload';
 import {
@@ -36,7 +37,7 @@ import {
   type ReadingSessionFinishPayload,
 } from '@/src/state/readingSessionFinishFlow';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const SESSION_END_HOUSE_ICON = require('../assets/images/reading_session/session-end-house.png');
 const SESSION_RECORD_CAMERA_ICON = require('../assets/images/reading_session/session-record-camera.png');
@@ -362,7 +363,8 @@ export default function ReadingSessionFinishFlowScreen() {
           {renderTopActions()}
         </View>
 
-        <ScrollView
+        <KeyboardAwareScrollView
+          style={{ flexGrow: 0, maxHeight: SCREEN_H * 0.72 }}
           contentContainerStyle={styles.modalBody}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
@@ -605,7 +607,7 @@ export default function ReadingSessionFinishFlowScreen() {
               </Pressable>
             </>
           ) : null}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     </View>
   );

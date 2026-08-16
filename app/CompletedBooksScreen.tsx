@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 
 import {
   fetchLibraryCompletedBooks,
@@ -195,7 +196,7 @@ export default function CompletedBooksScreen() {
         )}
       </ScrollView>
 
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/Drawer_1')}>
           <Image source={TODAY_ICON} style={styles.navIcon} resizeMode="contain" />
           <Text style={styles.navLabel}>투데이</Text>
@@ -218,7 +219,7 @@ export default function CompletedBooksScreen() {
           />
           <Text style={[styles.navLabel, styles.navLabelActive]}>내서재</Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }

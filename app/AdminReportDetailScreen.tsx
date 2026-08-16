@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,6 +22,7 @@ import {
   type ReportStatus,
 } from '@/src/api/reports';
 import { AdminRouteGuard } from '@/src/components/admin/AdminRouteGuard';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 const STATUS_OPTIONS: { value: ReportStatus; label: string }[] = [
   { value: 'pending', label: '접수' },
@@ -162,7 +162,7 @@ function AdminReportDetailContent() {
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>신고 정보</Text>
               <DetailRow label="신고 ID" value={report.id} />
@@ -206,7 +206,7 @@ function AdminReportDetailContent() {
               />
               <Text style={styles.counter}>{adminNote.length}/1000</Text>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
           <View style={styles.bottom}>
             <Pressable style={styles.saveButton} disabled={saving} onPress={() => void save()}>
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>저장</Text>}

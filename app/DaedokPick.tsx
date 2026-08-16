@@ -17,12 +17,14 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 
 import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 import { NotificationBellButton } from '@/src/components/header/NotificationBellButton';
 import { ProfileHeaderButton } from '@/src/components/header/ProfileHeaderButton';
 import { ReadingStaminaSection } from '@/src/components/reading-stamina/ReadingStaminaSection';
 import { PICK_CATEGORY_TO_API } from '@/src/constants/categoryBrowse';
+import { pickRemoteImageUrl, remoteImageSource } from '@/src/utils/mediaUrl';
 import { fetchBanners, type Banner } from '@/src/api/banners';
 import { fetchEvents, type DaedokEventItem } from '@/src/api/events';
 import { fetchPicks, type DaedokPickItem } from '@/src/api/picks';
@@ -70,11 +72,11 @@ const CATEGORY_IMAGES = {
   어린이: require('../assets/images/daedokPick/어린이.png'),
   만화: require('../assets/images/daedokPick/만화.png'),
   경제경영: require('../assets/images/daedokPick/경제경영.png'),
-  외국어: require('../assets/images/drawer/book2.png'), // TODO: 외국어 카테고리 이미지
+  외국어: require('../assets/images/daedokPick/외국어.png'),
   인문: require('../assets/images/daedokPick/인문.png'),
   철학: require('../assets/images/daedokPick/철학.png'),
   과학: require('../assets/images/daedokPick/과학.png'),
-  사회: require('../assets/images/drawer/book1.png'), // TODO: 사회 카테고리 이미지
+  사회: require('../assets/images/daedokPick/사회.png'),
   IT: require('../assets/images/daedokPick/IT.png'),
   역사: require('../assets/images/daedokPick/역사.png'),
   종교: require('../assets/images/daedokPick/종교.png'),
@@ -324,8 +326,8 @@ type PromoSlide = {
   source: 'banner' | 'event';
 };
 
-function mapBannerToSlide(item: Banner): PromoSlide | null {
-  const image = item.image_url?.trim();
+function mapBannerToSlide(item: Banner & { imageUrl?: string | null; image_path?: string | null }): PromoSlide | null {
+  const image = pickRemoteImageUrl(item);
   if (!image) return null;
   return {
     id: `banner-${item.id}`,
@@ -338,8 +340,11 @@ function mapBannerToSlide(item: Banner): PromoSlide | null {
   };
 }
 
-function mapEventToSlide(item: DaedokEventItem, index: number): PromoSlide | null {
-  const image = item.image_url?.trim();
+function mapEventToSlide(
+  item: DaedokEventItem & { imageUrl?: string | null; image_path?: string | null },
+  index: number,
+): PromoSlide | null {
+  const image = pickRemoteImageUrl(item);
   if (!image) return null;
   return {
     id: `event-${item.id}`,
@@ -392,7 +397,6 @@ function EventBanner() {
           );
 
         const eventSlides = eventItems
-          .filter((item) => Boolean(item.image_url?.trim()))
           .map(mapEventToSlide)
           .filter((item): item is PromoSlide => item != null);
 
@@ -488,10 +492,14 @@ function EventBanner() {
               disabled={!item.link_url}
               onPress={() => openBannerUrl(item.link_url)}>
               <ExpoImage
-                source={{ uri: item.image_url }}
+                source={remoteImageSource(item.image_url)}
                 style={styles.eventBannerImage}
                 contentFit="cover"
-                cachePolicy="memory-disk"
+                cachePolicy="none"
+                recyclingKey={item.id}
+                onError={() => {
+                  console.warn('[EventBanner] image error', item.image_url);
+                }}
               />
             </TouchableOpacity>
           )}
@@ -500,6 +508,7 @@ function EventBanner() {
 
       {currentBanner ? (
         <>
+          <View style={styles.eventBannerBottomDim} pointerEvents="none" />
           <View style={styles.eventBannerControlsOverlay} pointerEvents="box-none">
             <View style={styles.eventBannerControls}>
               <TouchableOpacity
@@ -1022,7 +1031,11 @@ function CategorySection({ onPressCategory }: { onPressCategory: (categoryId: st
               <Text style={styles.categoryName}>{category.name}</Text>
               <Text style={styles.categoryDescription}>{category.description}</Text>
             </View>
-            <ExpoImage source={category.icon} style={styles.categoryIcon} contentFit="cover" />
+            <Image
+              source={category.icon}
+              style={styles.categoryIcon}
+              resizeMode="cover"
+            />
           </TouchableOpacity>
         ))}
       </View>
@@ -1189,7 +1202,7 @@ export default function DaedokPickScreen() {
       </ScrollView>
 
       {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveNav('투데이')}>
@@ -1275,7 +1288,7 @@ export default function DaedokPickScreen() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }
@@ -1454,7 +1467,6 @@ const styles = StyleSheet.create({
   eventBannerList: {
     width: BANNER_WIDTH,
     height: BANNER_HEIGHT,
-    zIndex: 0,
   },
   bannerState: {
     width: BANNER_WIDTH,
@@ -1499,11 +1511,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingLeft: 14,
     paddingRight: 100,
-    /** 하단바를 위로 늘린 만큼 캡션 기준도 맞춤 */
     paddingBottom: 60,
     justifyContent: 'flex-end',
     zIndex: 3,
-    elevation: 6,
   },
   bannerCaptionTouch: {
     alignSelf: 'stretch',
@@ -1520,6 +1530,15 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 5,
   },
+  eventBannerBottomDim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 118,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    zIndex: 1,
+  },
   eventBannerControlsOverlay: {
     position: 'absolute',
     left: 0,
@@ -1527,13 +1546,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: 14,
     paddingBottom: 12,
-    paddingTop: 60,
-    minHeight: 103,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
-    zIndex: 1,
-    elevation: 2,
+    paddingTop: 16,
+    backgroundColor: 'transparent',
+    zIndex: 2,
   },
   eventBannerControls: {
     flexDirection: 'row',

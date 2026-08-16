@@ -5,6 +5,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AdminRouteGuard } from '@/src/components/admin/AdminRouteGuard';
+import { AppConfirmModal } from '@/src/components/ui/AppConfirmModal';
 import { logoutFromApp } from '@/src/features/auth/logout';
 
 const COLORS = {
@@ -18,32 +19,28 @@ const COLORS = {
 
 function AdminDashboardContent() {
   const router = useRouter();
+  const [logoutVisible, setLogoutVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const confirmLogout = () => {
     if (loggingOut) return;
-    Alert.alert('로그아웃', '관리자 계정에서 로그아웃할까요?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '로그아웃',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setLoggingOut(true);
-            try {
-              await logoutFromApp();
-              router.replace('/login');
-            } catch (reason) {
-              setLoggingOut(false);
-              Alert.alert(
-                '로그아웃 실패',
-                reason instanceof Error ? reason.message : '잠시 후 다시 시도해 주세요.',
-              );
-            }
-          })();
-        },
-      },
-    ]);
+    setLogoutVisible(true);
+  };
+
+  const runLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logoutFromApp();
+      setLogoutVisible(false);
+      router.replace('/login');
+    } catch (reason) {
+      setLoggingOut(false);
+      Alert.alert(
+        '로그아웃 실패',
+        reason instanceof Error ? reason.message : '잠시 후 다시 시도해 주세요.',
+      );
+    }
   };
 
   return (
@@ -185,6 +182,20 @@ function AdminDashboardContent() {
           <Ionicons name="chevron-forward" size={22} color={COLORS.subtitle} />
         </Pressable>
       </ScrollView>
+
+      <AppConfirmModal
+        visible={logoutVisible}
+        title="로그아웃"
+        message="관리자 계정에서 로그아웃할까요?"
+        confirmLabel="로그아웃"
+        confirmLoading={loggingOut}
+        onCancel={() => {
+          if (!loggingOut) setLogoutVisible(false);
+        }}
+        onConfirm={() => {
+          void runLogout();
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -17,6 +17,7 @@ import {
   getInfoAsync,
 } from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
+import { logStatus } from '@/src/utils/appLog';
 
 /** POST /proofs/upload 200 응답 */
 export type ProofUploadResult = {
@@ -55,12 +56,8 @@ type ProofUploadResponse = {
   createdAt?: string;
 };
 
-function proofLog(message: string, data?: Record<string, unknown>): void {
-  if (data) {
-    console.log(`[proofUpload] ${message}`, data);
-  } else {
-    console.log(`[proofUpload] ${message}`);
-  }
+function proofLog(message: string, _data?: Record<string, unknown>): void {
+  logStatus('proofUpload', message);
 }
 
 function headersForDiagnostics(headers: Record<string, string>): Record<string, string> {

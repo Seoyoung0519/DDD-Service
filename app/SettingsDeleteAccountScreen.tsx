@@ -8,7 +8,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { deleteAccount } from '@/src/api/settings';
 import { logoutFromApp } from '@/src/features/auth/logout';
 import { clearCachedOnboardingProfile } from '@/src/services/onboarding/onboardingProfileCache';
@@ -91,7 +91,8 @@ export default function SettingsDeleteAccountScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
+        <KeyboardAwareScrollView
+          style={styles.flex}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
@@ -135,7 +136,7 @@ export default function SettingsDeleteAccountScreen() {
               <Text style={styles.deleteButtonText}>계정 탈퇴</Text>
             )}
           </Pressable>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
 
       {deleting ? (

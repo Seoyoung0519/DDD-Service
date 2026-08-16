@@ -20,6 +20,7 @@ import {
   type UserProfileResponse,
 } from '@/src/api/userProfile';
 import { getUserAvatarSource } from '@/src/constants/userAvatars';
+import { AppConfirmModal } from '@/src/components/ui/AppConfirmModal';
 import { logoutFromApp } from '@/src/features/auth/logout';
 
 const COLORS = {
@@ -43,6 +44,9 @@ export default function AccountManagementScreen() {
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [logoutVisible, setLogoutVisible] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -71,23 +75,20 @@ export default function AccountManagementScreen() {
   const joinLine = formatOnboardedAtLabel(profile?.onboardedAt);
 
   const onLogout = () => {
-    Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '로그아웃',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await logoutFromApp();
-              router.replace('/login');
-            } catch {
-              Alert.alert('로그아웃 실패', '잠시 후 다시 시도해 주세요.');
-            }
-          })();
-        },
-      },
-    ]);
+    setLogoutVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logoutFromApp();
+      setLogoutVisible(false);
+      router.replace('/login');
+    } catch {
+      setLoggingOut(false);
+      Alert.alert('로그아웃 실패', '잠시 후 다시 시도해 주세요.');
+    }
   };
 
   return (
@@ -158,6 +159,20 @@ export default function AccountManagementScreen() {
           </View>
         </ScrollView>
       )}
+
+      <AppConfirmModal
+        visible={logoutVisible}
+        title="로그아웃"
+        message="정말 로그아웃 하시겠습니까?"
+        confirmLabel="로그아웃"
+        confirmLoading={loggingOut}
+        onCancel={() => {
+          if (!loggingOut) setLogoutVisible(false);
+        }}
+        onConfirm={() => {
+          void confirmLogout();
+        }}
+      />
     </SafeAreaView>
   );
 }

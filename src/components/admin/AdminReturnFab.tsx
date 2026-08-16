@@ -55,7 +55,7 @@ export function AdminReturnFab() {
       style={[
         styles.host,
         {
-          bottom: Math.max(insets.bottom, 12) + 64,
+          bottom: 88 + Math.max(insets.bottom, 8),
           right: 16,
         },
       ]}>

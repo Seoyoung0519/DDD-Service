@@ -79,14 +79,6 @@ export default function CommuteRouteResultScreen() {
       Alert.alert('알림', '로그인 정보가 없어 분량 추천을 받을 수 없습니다.');
       return;
     }
-    if (data.isFallback) {
-      Alert.alert(
-        '알림',
-        '예시 경로입니다. 통근 경로 조회가 성공한 뒤 다시 시도해 주세요.',
-        [{ text: '확인', onPress: () => router.back() }],
-      );
-      return;
-    }
     if (!selectedRouteId || !selectedRoute) return;
 
     /** 장소 검색 좌표가 없을 때 경로 segments의 정류장 좌표로 보강 (세션 API body용) */
@@ -105,15 +97,11 @@ export default function CommuteRouteResultScreen() {
       destinationLat: data.destinationLat ?? fromRoute.destinationLat ?? undefined,
       destinationLng: data.destinationLng ?? fromRoute.destinationLng ?? undefined,
     });
-    /** 책읽기 메인(ReadingSession_1)을 스택 최하단에 두고, 그 위에 분량 추천 모달을 띄움 */
-    router.replace({
-      pathname: '/ReadingSession_1',
-      params: { hidePickModal: '1' },
-    });
+    /** 경로 결과 위에 분량 추천 모달을 바로 띄움 (투명 모달 RS1 hop은 다음 화면이 안 열리는 경우가 있음) */
+    router.push('/CommuteReadingRecommendScreen');
   };
 
-  const canGoNext =
-    Boolean(data?.sessionDraft) && !data?.isFallback && Boolean(selectedRoute);
+  const canGoNext = Boolean(data?.sessionDraft) && Boolean(selectedRoute);
 
   if (!data) {
     return (

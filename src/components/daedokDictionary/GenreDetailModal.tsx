@@ -14,6 +14,8 @@ import {
 
 import { getBookDetailByTitle, type BookDetailResponse } from '@/src/api/search';
 import type { DaedokDictionaryGenre } from '@/src/constants/daedokDictionaryGenres';
+import { toHighResCoverUrl } from '@/src/utils/coverUrl';
+import { remoteImageSource } from '@/src/utils/mediaUrl';
 
 type GenreDetailModalProps = {
   genre: DaedokDictionaryGenre | null;
@@ -62,15 +64,21 @@ export function GenreDetailModal({ genre, visible, onClose }: GenreDetailModalPr
   const displayAuthors = bookDetail?.authors?.length
     ? bookDetail.authors.join(', ')
     : null;
-  const coverUrl = bookDetail?.thumbnail_url?.trim() || null;
-  const canOpenBookDetail = bookDetail?.aladin_item_id != null;
+  const coverUrl = bookDetail?.thumbnail_url?.trim()
+    ? toHighResCoverUrl(bookDetail.thumbnail_url.trim())
+    : null;
+  const canOpenBookDetail = Boolean(bookDetail?.aladin_item_id || genre.recommendedBookTitle);
 
   const openBookDetail = () => {
-    if (!bookDetail?.aladin_item_id) return;
+    if (!canOpenBookDetail) return;
     onClose();
     router.push({
       pathname: '/BookDetailScreen',
-      params: { bookId: bookDetail.aladin_item_id, skipRecentBook: 'true' },
+      params: {
+        ...(bookDetail?.aladin_item_id ? { bookId: bookDetail.aladin_item_id } : {}),
+        bookTitle: displayTitle,
+        skipRecentBook: 'true',
+      },
     });
   };
 
@@ -95,14 +103,18 @@ export function GenreDetailModal({ genre, visible, onClose }: GenreDetailModalPr
             </Text>
             <TouchableOpacity
               style={styles.bookRow}
-              activeOpacity={canOpenBookDetail ? 0.75 : 1}
-              disabled={!canOpenBookDetail}
+              activeOpacity={bookLoading ? 1 : 0.75}
+              disabled={bookLoading}
               onPress={openBookDetail}>
               <View style={styles.bookCoverWrap}>
                 {bookLoading ? (
                   <ActivityIndicator size="small" color="#888888" />
                 ) : coverUrl ? (
-                  <Image source={{ uri: coverUrl }} style={styles.bookCover} contentFit="cover" />
+                  <Image
+                    source={remoteImageSource(coverUrl)}
+                    style={styles.bookCover}
+                    contentFit="cover"
+                  />
                 ) : (
                   <View style={styles.bookCoverPlaceholder} />
                 )}

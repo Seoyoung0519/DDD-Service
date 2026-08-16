@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { createReview, parseReadingPeriodDates } from '@/src/api/reviews';
 import type { CompletedBookItem } from '@/src/data/completedBooks';
 import { getCompletedBookById } from '@/src/data/completedBooks';
@@ -269,7 +270,7 @@ export function BookReviewWriteModal({
         ) : (
           <KeyboardAvoidingView
             style={styles.kavRoot}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior="padding"
             keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}>
             <Pressable style={[styles.overlay, { paddingTop: Math.max(insets.top, 12) }]} onPress={onClose}>
               <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
@@ -281,7 +282,7 @@ export function BookReviewWriteModal({
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <ScrollView
+                  <KeyboardAwareScrollView
                     style={styles.scroll}
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="always"
@@ -372,7 +373,7 @@ export function BookReviewWriteModal({
                         textAlignVertical="top"
                       />
                     </View>
-                  </ScrollView>
+                    </KeyboardAwareScrollView>
                 )}
               </Pressable>
             </Pressable>

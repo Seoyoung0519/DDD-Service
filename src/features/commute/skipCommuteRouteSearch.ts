@@ -22,10 +22,7 @@ export async function navigateToDemoCommuteRecommend(
     }
     const user = await fetchCurrentUser();
     setCommuteReadingRecommend(buildDemoCommuteReadingRecommendPayload(user.id, book));
-    router.replace({
-      pathname: '/ReadingSession_1',
-      params: { hidePickModal: '1' },
-    });
+    router.push('/CommuteReadingRecommendScreen');
   } catch (e: unknown) {
     const msg =
       typeof e === 'object' && e != null && 'message' in e

@@ -2,6 +2,7 @@
 
 import { LOGIN_API_BASE_URL } from '@/src/config/api';
 import { clearOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
+import { logError, logStatus } from '@/src/utils/appLog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 요청에 사용할 타입
@@ -235,7 +236,7 @@ export async function printAccessTokenDebug(
       : '(없음 — 로그인 필요)',
   );
   if (options?.logFullJwt && jwt) {
-    console.log('[AUTH] Main API JWT FULL (__DEV__ only):', jwt);
+    console.log('[AUTH] Main API JWT: present');
   }
   console.log(
     '[AUTH] Google OAuth token:',
@@ -358,7 +359,7 @@ async function postSocialLogin(
       fetchError instanceof Error
         ? fetchError.message
         : '네트워크 연결을 확인해주세요. 서버에 연결할 수 없습니다.';
-    console.error('[AUTH] Network error during login:', fetchError);
+    console.error('[AUTH] Network error during login');
     throw new Error(message);
   }
 
@@ -375,12 +376,7 @@ async function postSocialLogin(
         ? res.status
         : parseInt(String(res.status), 10) || 0;
 
-    console.error('[AUTH] Login failed:', {
-      path,
-      status: statusCode,
-      statusText: res.statusText,
-      errorText,
-    });
+    logError('AUTH', `로그인 실패 status=${statusCode}`);
 
     const trimmed = errorText?.trim() ?? '';
     let detail = trimmed || res.statusText?.trim() || '';
@@ -415,7 +411,7 @@ async function postSocialLogin(
   try {
     data = await res.json();
   } catch (jsonError: unknown) {
-    console.error('[AUTH] JSON parse error:', jsonError);
+    logError('AUTH', '응답 파싱 실패');
     throw new Error('서버 응답을 처리하는 중 오류가 발생했습니다.');
   }
 
@@ -433,14 +429,7 @@ async function postSocialLogin(
   }
 
   if (__DEV__) {
-    console.log('[AUTH] ✅ Login success:', {
-      path,
-      email: data.user.email,
-      userId: data.user.id,
-      accessTokenLength: data.accessToken.length,
-      expiresIn: data.expiresIn,
-      responseKeys: Object.keys(raw),
-    });
+    logStatus('AUTH', '로그인 성공');
   }
 
   return data;
@@ -454,22 +443,14 @@ export async function loginWithGoogle(
 
   // idToken 유효성 검증
   if (!idToken || typeof idToken !== 'string' || idToken.trim().length === 0) {
-    console.error('[AUTH] Invalid idToken:', {
-      idToken: idToken,
-      type: typeof idToken,
-      length: idToken?.length,
-    });
+    logError('AUTH', 'idToken 없음');
     throw new Error('유효하지 않은 idToken입니다.');
   }
 
   // idToken이 JWT 형식인지 확인 (3개의 점으로 구분된 부분이 있어야 함)
   const parts = idToken.split('.');
   if (parts.length !== 3) {
-    console.error('[AUTH] Invalid idToken format:', {
-      partsCount: parts.length,
-      idTokenLength: idToken.length,
-      idTokenPreview: idToken.substring(0, 50) + '...',
-    });
+    logError('AUTH', 'idToken 형식 오류');
     throw new Error('idToken 형식이 올바르지 않습니다.');
   }
 
@@ -581,7 +562,7 @@ export async function fetchCurrentUser() {
       }
       throw new AuthSessionExpiredError();
     }
-    console.error('[AUTH] /me failed:', res.status, errorText);
+    console.error('[AUTH] /me failed', res.status);
     throw new Error('내 정보 조회 실패');
   }
 

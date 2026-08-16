@@ -77,12 +77,12 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
           platform: result.platform,
         });
 
-        console.log('[AUTH] ✅ Login success:', authResponse.user.email);
+        console.log('[AUTH] Login success');
 
         // onSuccess 콜백 호출 (온보딩 화면으로 네비게이션 등) - await로 라우팅 완료 보장
         await onSuccess?.(result);
       } catch (error: any) {
-        console.error('[AUTH] ❌ Login error:', error);
+        console.error('[AUTH] Login error');
         Alert.alert(
           '로그인 실패',
           error?.message || '서버 인증 중 오류가 발생했습니다.',
@@ -246,7 +246,7 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
 
         } catch (e: any) {
 
-          console.error('[WEB] Failed to fetch user info:', e);
+          console.error('[WEB] Failed to fetch user info');
 
           Alert.alert('로그인 실패 (웹)', '사용자 정보를 가져오는 중 오류가 발생했습니다.');
 
@@ -256,7 +256,7 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
 
       } else if (response.type === 'error') {
 
-        console.error('[WEB] Google Login Error:', response.error);
+        console.error('[WEB] Google Login Error');
 
         Alert.alert('로그인 실패 (웹)', response.error?.message ?? '알 수 없는 오류');
 
@@ -342,12 +342,7 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
         console.log('[ANDROID] Login successful');
 
         if (!idToken || typeof idToken !== 'string' || idToken.trim().length === 0) {
-          console.error('[ANDROID] Invalid idToken:', {
-            idToken,
-            type: typeof idToken,
-            signInResultKeys: Object.keys(signInResult || {}),
-            dataKeys: signInResult?.data ? Object.keys(signInResult.data) : [],
-          });
+          console.error('[ANDROID] Invalid idToken');
           throw new Error('idToken을 가져올 수 없습니다.');
         }
 
@@ -404,7 +399,7 @@ export function useGoogleLogin(onSuccess?: (result: GoogleLoginResult) => void) 
 
       } else {
 
-        console.error('Login error:', error);
+        console.error('Login error');
 
         Alert.alert('로그인 실패', error?.message ?? '로그인 중 오류가 발생했습니다.');
 

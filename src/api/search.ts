@@ -345,6 +345,24 @@ export async function hydrateBookForDetailViaSearch(
 }
 
 /**
+ * 제목만으로 도서 상세를 찾습니다. (대독사전 추천 도서 등)
+ * 백엔드는 검색을 한 뒤에야 `/api/books/:id` 가 열리는 경우가 있어, 검색 → 상세 순으로 조회합니다.
+ */
+export async function getBookDetailByTitle(title: string): Promise<BookDetailResponse> {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    throw new Error('도서 제목이 없습니다.');
+  }
+
+  const itemId = await hydrateBookForDetailViaSearch('', trimmed);
+  const { data } = await apiClient.get<BookDetailResponse>(`/api/books/${itemId}`, {
+    params: { skip_recent_book: 'true' },
+    suppressApiErrorLog: true,
+  });
+  return data;
+}
+
+/**
  * 최근 검색어 조회
  */
 export const getRecentQueries = () =>

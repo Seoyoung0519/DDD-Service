@@ -143,7 +143,14 @@ export function ReadingStaminaCarousel({
             opacity,
           },
         ]}>
-        <ExpoImage source={coverSource} style={styles.bookCarouselCover} contentFit="cover" />
+        <ExpoImage
+          source={coverSource}
+          style={styles.bookCarouselCover}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={item.id}
+          allowDownscaling={false}
+        />
       </Animated.View>
     );
 

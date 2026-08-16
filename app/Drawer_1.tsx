@@ -16,6 +16,7 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 import { getBookshelfList, type BookshelfItem } from '../src/api/bookshelf';
 import AddToShelfModal from './AddToShelfModal';
 import {
@@ -31,6 +32,13 @@ import { NotificationBellButton } from '@/src/components/header/NotificationBell
 import { ProfileHeaderButton } from '@/src/components/header/ProfileHeaderButton';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+/** 키링·책장 스와이프 페이지 세로 슬롯 (넘길 때 아래 진도율 영역이 흔들리지 않도록 동일 높이) */
+const SLIDE_TITLE_SLOT = 32;
+const SLIDE_SUBTITLE_SLOT = 60;
+const SLIDE_MEDIA_HEIGHT = 280;
+const SLIDE_PAGE_HEIGHT =
+  18 + SLIDE_TITLE_SLOT + 12 + SLIDE_SUBTITLE_SLOT + 15 + SLIDE_MEDIA_HEIGHT + 12 + 12 + 36 + 30;
 
 // 이미지 경로 (app 바로 아래에 있으므로 한 단계만 올라감)
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
@@ -341,21 +349,28 @@ export default function HomeShelf() {
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            style={styles.slidingList}
             keyExtractor={(item) => item.toString()}
             onMomentumScrollEnd={(event) => {
               const pageIndex = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
               setCurrentPageIndex(pageIndex);
             }}
             renderItem={({ item }) => (
-              <View style={{ width: SCREEN_WIDTH }}>
+              <View style={styles.slidePage}>
                 {item === 0 ? (
                   // 첫 번째 페이지: 책최몇?
-                  <View style={styles.keyringSection}>
-                    <Text style={styles.keyringTitle}>책최몇? 너 책키링 최대 몇 개야?</Text>
-                    <Text style={styles.keyringSubtitle}>
-                      당신이 책 보석함에 등록한 책들 중 완독한 책이 키링으로 기록됩니다. 책 장르별로 참
-                      장식이 달라지니 모으는 재미가 있을 거예요!
-                    </Text>
+                  <View style={styles.slidePageInner}>
+                    <View style={styles.slideTitleSlot}>
+                      <Text style={styles.keyringTitle} numberOfLines={1} adjustsFontSizeToFit>
+                        책최몇? 너 책키링 최대 몇 개야?
+                      </Text>
+                    </View>
+                    <View style={styles.slideSubtitleSlot}>
+                      <Text style={styles.keyringSubtitle} numberOfLines={3}>
+                        당신이 책 보석함에 등록한 책들 중 완독한 책이 키링으로 기록됩니다. 책 장르별로 참
+                        장식이 달라지니 모으는 재미가 있을 거예요!
+                      </Text>
+                    </View>
                     <View style={styles.keyringImageContainer}>
                       <ExpoImage
                         source={
@@ -369,6 +384,22 @@ export default function HomeShelf() {
                       {!latestKeyring?.imageUrl && (
                         <Text style={styles.keyringEmptyText}>아직 완독한 책이 없어요!</Text>
                       )}
+                    </View>
+                    <View style={styles.slideFooter}>
+                      <View style={[styles.pagination, styles.paginationInFooter]}>
+                        <View
+                          style={[
+                            styles.paginationDot,
+                            currentPageIndex === 0 && styles.paginationDotActive,
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.paginationDot,
+                            currentPageIndex === 1 && styles.paginationDotActive,
+                          ]}
+                        />
+                      </View>
                       <View style={styles.keyringActions}>
                         <TouchableOpacity
                           style={styles.actionButton}
@@ -384,33 +415,17 @@ export default function HomeShelf() {
                         <TouchableOpacity style={styles.actionButton}>
                           <Ionicons name="download-outline" size={20} color={COLORS.TEXT} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionButton}>
-                          <Ionicons name="share-outline" size={20} color={COLORS.TEXT} />
-                        </TouchableOpacity>
                       </View>
-                    </View>
-                    {/* 페이지 인디케이터 도트 */}
-                    <View style={styles.pagination}>
-                      <View
-                        style={[
-                          styles.paginationDot,
-                          currentPageIndex === 0 && styles.paginationDotActive,
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.paginationDot,
-                          currentPageIndex === 1 && styles.paginationDotActive,
-                        ]}
-                      />
                     </View>
                   </View>
                 ) : (
                   // 두 번째 페이지: 책 선반
-                  <View style={styles.vaultSection}>
+                  <View style={styles.slidePageInner}>
                     {/* 제목과 책 추가 버튼 */}
-                    <View style={styles.vaultHeader}>
-                      <Text style={styles.vaultTitle}>당신의 소중한 책 보석함</Text>
+                    <View style={[styles.slideTitleSlot, styles.vaultHeader]}>
+                      <Text style={styles.vaultTitle} numberOfLines={1} adjustsFontSizeToFit>
+                        당신의 소중한 책 보석함
+                      </Text>
                       <TouchableOpacity
                         style={styles.addBookButton}
                         onPress={() => setIsSearchModalVisible(true)}
@@ -419,11 +434,12 @@ export default function HomeShelf() {
                       </TouchableOpacity>
                     </View>
 
-                    {/* 서브 텍스트 */}
-                    <Text style={styles.vaultSubtitle}>
-                      읽고 있거나 읽을 예정인 책을 오른쪽 아이콘을 눌러 등록해보세요.{'\n'}
-                      아래 책장에 책이 하나 하나 쌓일거예요!
-                    </Text>
+                    <View style={styles.slideSubtitleSlot}>
+                      <Text style={styles.vaultSubtitle} numberOfLines={3}>
+                        읽고 있거나 읽을 예정인 책을 오른쪽 아이콘을 눌러 등록해보세요.{'\n'}
+                        아래 책장에 책이 하나 하나 쌓일거예요!
+                      </Text>
+                    </View>
 
                     {/* 책장 이미지 영역 */}
                     <View style={styles.bookshelfContainer}>
@@ -548,20 +564,21 @@ export default function HomeShelf() {
                         />
                       </TouchableOpacity>
                     </View>
-                    {/* 페이지 인디케이터 도트 */}
-                    <View style={styles.pagination}>
-                      <View
-                        style={[
-                          styles.paginationDot,
-                          currentPageIndex === 0 && styles.paginationDotActive,
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.paginationDot,
-                          currentPageIndex === 1 && styles.paginationDotActive,
-                        ]}
-                      />
+                    <View style={styles.slideFooter}>
+                      <View style={[styles.pagination, styles.paginationInFooter]}>
+                        <View
+                          style={[
+                            styles.paginationDot,
+                            currentPageIndex === 0 && styles.paginationDotActive,
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.paginationDot,
+                            currentPageIndex === 1 && styles.paginationDotActive,
+                          ]}
+                        />
+                      </View>
                     </View>
                   </View>
                 )}
@@ -639,7 +656,7 @@ export default function HomeShelf() {
       />
 
       {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveNav('투데이')}>
@@ -725,7 +742,7 @@ export default function HomeShelf() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }
@@ -847,20 +864,39 @@ const styles = StyleSheet.create({
   },
   slidingSectionContainer: {
     position: 'relative',
+    height: SLIDE_PAGE_HEIGHT,
   },
-  keyringSection: {
+  slidingList: {
+    height: SLIDE_PAGE_HEIGHT,
+    flexGrow: 0,
+  },
+  slidePage: {
+    width: SCREEN_WIDTH,
+    height: SLIDE_PAGE_HEIGHT,
+  },
+  slidePageInner: {
+    flex: 1,
     backgroundColor: COLORS.SECTION_BG,
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 30,
-    marginTop: 0,
+  },
+  slideTitleSlot: {
+    height: SLIDE_TITLE_SLOT,
+    marginBottom: 12,
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  slideSubtitleSlot: {
+    height: SLIDE_SUBTITLE_SLOT,
+    marginBottom: 15,
+    overflow: 'hidden',
   },
   keyringTitle: {
     fontSize: 20,
     fontFamily: FONTS.BOLD,
     fontWeight: '700',
     color: COLORS.TEXT,
-    marginBottom: 12,
     textAlign: 'center',
   },
   keyringSubtitle: {
@@ -868,31 +904,42 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
     color: COLORS.SUBTITLE,
     lineHeight: 20,
-    marginBottom: 15,
   },
   keyringImageContainer: {
+    height: SLIDE_MEDIA_HEIGHT,
     alignItems: 'center',
-    marginTop: -1,
+    justifyContent: 'center',
     marginBottom: 12,
     position: 'relative',
   },
   keyringImage: {
     width: '100%',
-    height: 280,
+    height: SLIDE_MEDIA_HEIGHT,
     maxWidth: 350,
   },
   keyringEmptyText: {
-    marginTop: 12,
+    position: 'absolute',
+    bottom: 4,
+    left: 16,
+    right: 16,
     fontSize: 13,
     fontFamily: FONTS.REGULAR,
     color: COLORS.SUBTITLE,
     textAlign: 'center',
   },
+  slideFooter: {
+    position: 'relative',
+    height: 36,
+    marginTop: 12,
+    justifyContent: 'center',
+  },
   keyringActions: {
     position: 'absolute',
-    bottom: -43,
-    right: -2,
+    right: 0,
+    top: 0,
+    bottom: 0,
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
   actionButton: {
@@ -911,8 +958,14 @@ const styles = StyleSheet.create({
   pagination: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: 6,
+    height: 6,
     marginTop: 12,
+  },
+  paginationInFooter: {
+    marginTop: 0,
+    height: 36,
   },
   paginationDot: {
     width: 10,
@@ -925,18 +978,10 @@ const styles = StyleSheet.create({
     width: 18,
   },
   // 책 보석함 섹션 스타일
-  vaultSection: {
-    backgroundColor: COLORS.SECTION_BG,
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 30,
-    marginTop: 0,
-  },
   vaultHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
     position: 'relative',
   },
   vaultTitle: {
@@ -964,25 +1009,26 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
     color: COLORS.SUBTITLE,
     lineHeight: 20,
-    marginBottom: 15,
     textAlign: 'center',
   },
   bookshelfContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 6,
+    height: SLIDE_MEDIA_HEIGHT,
+    marginBottom: 12,
     position: 'relative',
   },
   bookshelfWrapper: {
     width: '90%',
+    height: SLIDE_MEDIA_HEIGHT,
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bookshelfImage: {
     width: '100%',
-    height: 280,
+    height: SLIDE_MEDIA_HEIGHT,
     maxWidth: 400,
   },
   booksOnShelf: {

@@ -7,20 +7,22 @@ import { getCachedCommuteProfile } from '@/src/services/onboarding/onboardingPro
 import { saveCommuteProfileForEdit } from '@/src/services/onboarding/onboardingProfileEditSave';
 import { isOnboardingEditMode } from '@/src/utils/onboardingProfileEdit';
 import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
+import { CommutePlaceSearchDualCard } from '@/src/components/commute/CommutePlaceSearchDualCard';
+import { consumeCommutePlaceSelection } from '@/src/state/commutePlaceSelection';
+import type { CommutePlace } from '@/src/types/commute';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -112,6 +114,9 @@ export default function Onboarding_4() {
 
   const [departure, setDeparture] = useState('');
   const [arrival, setArrival] = useState('');
+  const [originPlaceId, setOriginPlaceId] = useState<string | null>(null);
+  const [destinationPlaceId, setDestinationPlaceId] = useState<string | null>(null);
+  const [suppressInlineSuggestions, setSuppressInlineSuggestions] = useState(false);
   const [durationHours, setDurationHours] = useState(0);
   const [durationMinutes, setDurationMinutes] = useState(0);
   const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
@@ -128,33 +133,64 @@ export default function Onboarding_4() {
   const [showCommuteEndMinutes, setShowCommuteEndMinutes] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!isEditMode) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const commute = await getCachedCommuteProfile();
+        if (!commute || cancelled) return;
+
+        setDeparture(commute.originName);
+        setArrival(commute.destinationName);
+        setOriginPlaceId((prev) => prev ?? 'cached');
+        setDestinationPlaceId((prev) => prev ?? 'cached');
+        setDurationHours(commute.commuteHour);
+        setDurationMinutes(commute.commuteMinute);
+        setCommuteStartHours(commute.departHour);
+        setCommuteStartMinutes(commute.departMinute);
+        setCommuteEndHours(commute.returnHour);
+        setCommuteEndMinutes(commute.returnMinute);
+        setSelectedDays(
+          commute.commuteDays
+            .map((day) => API_DAY_TO_KO[day])
+            .filter((day): day is DayOfWeek => (DAYS as readonly string[]).includes(day)),
+        );
+      } catch {
+        // 빈 폼 유지
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditMode]);
+
   useFocusEffect(
     useCallback(() => {
-      if (!isEditMode) return;
-      void (async () => {
-        try {
-          const commute = await getCachedCommuteProfile();
-          if (!commute) return;
-
-          setDeparture(commute.originName);
-          setArrival(commute.destinationName);
-          setDurationHours(commute.commuteHour);
-          setDurationMinutes(commute.commuteMinute);
-          setCommuteStartHours(commute.departHour);
-          setCommuteStartMinutes(commute.departMinute);
-          setCommuteEndHours(commute.returnHour);
-          setCommuteEndMinutes(commute.returnMinute);
-          setSelectedDays(
-            commute.commuteDays
-              .map((day) => API_DAY_TO_KO[day])
-              .filter((day): day is DayOfWeek => (DAYS as readonly string[]).includes(day)),
-          );
-        } catch {
-          // 빈 폼 유지
-        }
-      })();
-    }, [isEditMode]),
+      const picked = consumeCommutePlaceSelection();
+      if (!picked) return;
+      setSuppressInlineSuggestions(true);
+      if (picked.field === 'origin') {
+        setDeparture(picked.place.label);
+        setOriginPlaceId(picked.place.placeId);
+      } else {
+        setArrival(picked.place.label);
+        setDestinationPlaceId(picked.place.placeId);
+      }
+    }, []),
   );
+
+  const applyOrigin = useCallback((place: CommutePlace) => {
+    setSuppressInlineSuggestions(true);
+    setDeparture(place.label);
+    setOriginPlaceId(place.placeId);
+  }, []);
+
+  const applyDestination = useCallback((place: CommutePlace) => {
+    setSuppressInlineSuggestions(true);
+    setArrival(place.label);
+    setDestinationPlaceId(place.placeId);
+  }, []);
 
   const toggleDay = (day: DayOfWeek) => {
     setSelectedDays((prev) =>
@@ -168,12 +204,12 @@ export default function Onboarding_4() {
 
   const handleNext = async () => {
     if (submitting) return;
-    if (!departure.trim()) {
-      alert('출발지를 입력해주세요.');
+    if (!departure.trim() || !originPlaceId) {
+      Alert.alert('안내', '출발지를 검색해서 목록에서 선택해 주세요.');
       return;
     }
-    if (!arrival.trim()) {
-      alert('도착지를 입력해주세요.');
+    if (!arrival.trim() || !destinationPlaceId) {
+      Alert.alert('안내', '도착지를 검색해서 목록에서 선택해 주세요.');
       return;
     }
     if (selectedDays.length === 0) {
@@ -240,9 +276,10 @@ export default function Onboarding_4() {
       {/* 회색 바 */}
       <View style={styles.divider} />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         {/* 상단 타이틀 영역 */}
         <View style={styles.headerSection}>
@@ -256,38 +293,31 @@ export default function Onboarding_4() {
         </View>
 
         {/* 주요 출·도착지 섹션 */}
-        <View style={styles.section}>
+        <View style={[styles.section, styles.placeSection]}>
           <Text style={styles.sectionTitle}>
             주요 출·도착지<Text style={styles.asterisk}>*</Text>
           </Text>
           <Text style={styles.sectionDescription}>
-            출·퇴근이나 등·하교 시 주로 이동하는 장소를 작성해주세요
+            출·퇴근이나 등·하교 시 주로 이동하는 장소를 검색해서 선택해주세요
           </Text>
           <View style={styles.locationInputContainer}>
-            <View style={styles.locationInputWrapper}>
-              <TextInput
-                style={styles.locationInput}
-                placeholder="출발지 입력"
-                placeholderTextColor={COLORS.LIGHT_GRAY}
-                value={departure}
-                onChangeText={setDeparture}
-              />
-              <TouchableOpacity style={styles.searchIconContainer}>
-                <Ionicons name="search" size={20} color={COLORS.GRAY} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.locationInputWrapper}>
-              <TextInput
-                style={styles.locationInput}
-                placeholder="도착지 입력"
-                placeholderTextColor={COLORS.LIGHT_GRAY}
-                value={arrival}
-                onChangeText={setArrival}
-              />
-              <TouchableOpacity style={styles.searchIconContainer}>
-                <Ionicons name="search" size={20} color={COLORS.GRAY} />
-              </TouchableOpacity>
-            </View>
+            <CommutePlaceSearchDualCard
+              departure={departure}
+              arrival={arrival}
+              suppressInlineSuggestions={suppressInlineSuggestions}
+              onChangeDeparture={(t) => {
+                setSuppressInlineSuggestions(false);
+                setDeparture(t);
+                setOriginPlaceId(null);
+              }}
+              onChangeArrival={(t) => {
+                setSuppressInlineSuggestions(false);
+                setArrival(t);
+                setDestinationPlaceId(null);
+              }}
+              onSelectOrigin={applyOrigin}
+              onSelectDestination={applyDestination}
+            />
           </View>
         </View>
 
@@ -564,7 +594,7 @@ export default function Onboarding_4() {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -649,26 +679,10 @@ const styles = StyleSheet.create({
   },
   locationInputContainer: {
     marginTop: 16,
-    gap: 12,
   },
-  locationInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.INPUT_BORDER,
-    borderRadius: 8,
-    backgroundColor: COLORS.DROPDOWN_BG,
-    paddingHorizontal: 12,
-    height: 44,
-  },
-  locationInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#333333',
-    fontFamily: FONTS.REGULAR,
-  },
-  searchIconContainer: {
-    padding: 4,
+  placeSection: {
+    zIndex: 20,
+    elevation: 20,
   },
   timeSelectorContainer: {
     flexDirection: 'row',

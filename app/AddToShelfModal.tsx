@@ -7,7 +7,6 @@ import {
   Dimensions,
   Modal,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +15,7 @@ import {
 } from 'react-native';
 import { addBookToBookshelf, type BookshelfItem } from '../src/api/bookshelf';
 import { searchBooks, type SearchBookItem } from '../src/api/search';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -193,6 +193,10 @@ export default function AddToShelfModal({ visible, onClose, onSelectAndAdd }: Ad
         <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
           {/* 모달 카드 */}
           <View style={styles.modalCard}>
+            <KeyboardAwareScrollView
+              style={{ flexGrow: 0, maxHeight: SCREEN_HEIGHT * 0.55 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
             {/* 상단 텍스트 영역 */}
             <View style={styles.headerSection}>
               <Text style={styles.modalTitle}>내 책장에 담기</Text>
@@ -227,7 +231,7 @@ export default function AddToShelfModal({ visible, onClose, onSelectAndAdd }: Ad
             )}
 
             {/* 도서 리스트 영역 */}
-            <ScrollView style={styles.bookListContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.bookListContainer}>
               {loading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color={COLORS.PRIMARY} />
@@ -291,7 +295,8 @@ export default function AddToShelfModal({ visible, onClose, onSelectAndAdd }: Ad
                   <Text style={styles.emptyText}>검색어를 입력해 책을 찾아보세요.</Text>
                 </View>
               )}
-            </ScrollView>
+            </View>
+            </KeyboardAwareScrollView>
 
             {/* 하단 버튼 영역 */}
             <View style={styles.buttonContainer}>
@@ -395,7 +400,6 @@ const styles = StyleSheet.create({
   },
   bookListContainer: {
     marginTop: 16,
-    maxHeight: SCREEN_HEIGHT * 0.35,
   },
   loadingContainer: {
     padding: 20,

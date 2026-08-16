@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -302,7 +303,7 @@ export default function ShelfGemScreen() {
       </ScrollView>
 
       {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveNav('투데이')}>
@@ -388,7 +389,7 @@ export default function ShelfGemScreen() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }

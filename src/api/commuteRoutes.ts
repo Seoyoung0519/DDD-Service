@@ -3,10 +3,10 @@
  * POST /api/commute/routes
  * 출발/도착 placeId → 최적 1 + 대안 3 (정규화된 routes[])
  */
-import { formatApiErrorBodyForLog } from '@/src/api/client';
 import { getDaedokdanApiAuthHeaders } from '@/src/api/readingSession';
 import { MAIN_API_BASE_URL } from '@/src/config/api';
 import type { CommuteRouteJson, CommuteRouteSegment } from '@/src/api/readingSession';
+import { logStatus, logWarn } from '@/src/utils/appLog';
 
 const ROUTES_PATH = '/api/commute/routes';
 /** Render → EC2 → ODsay 연동으로 25초 이상 걸릴 수 있음 */
@@ -28,35 +28,20 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function devLog(...args: unknown[]) {
-  if (__DEV__) {
-    console.warn('[commuteRoutes]', ...args);
-  }
-}
-
-function devLogFailure(
-  error: unknown,
-  requestJson: string,
-  attempt: number,
-) {
-  if (!__DEV__) return;
+function logCommuteFailure(error: unknown, attempt: number) {
   if (error instanceof CommuteRoutesHttpError) {
-    devLog(`FAIL attempt=${attempt + 1}`, {
-      url: `${MAIN_API_BASE_URL}${ROUTES_PATH}`,
-      requestJson,
-      status: error.status,
-      message: error.message,
-      body: error.responseBody.slice(0, 800),
-    });
+    logWarn('commuteRoutes', `실패 attempt=${attempt + 1} status=${error.status}`);
     return;
   }
-  devLog(`FAIL attempt=${attempt + 1}`, { requestJson, error });
+  logWarn('commuteRoutes', `실패 attempt=${attempt + 1}`);
 }
 
 function isRetriableCommuteRoutesError(error: unknown): boolean {
   if (error instanceof CommuteRoutesHttpError) {
-    if (error.status >= 500) return true;
-    return error.message.toLowerCase().includes('timeout');
+    const raw = error.message.toLowerCase();
+    // 서버 axios 30초 타임아웃을 곧바로 재시도하면 사용자만 한 번 더 기다림
+    if (raw.includes('timeout') || raw.includes('초과')) return false;
+    return error.status === 502 || error.status === 503;
   }
   if (error instanceof Error) {
     if (error.name === 'AbortError') return true;
@@ -115,7 +100,6 @@ async function postCommuteRoutes(
   const headers = await getDaedokdanApiAuthHeaders();
   const url = `${MAIN_API_BASE_URL}${ROUTES_PATH}`;
   const bodyJson = JSON.stringify(requestBody);
-  devLog('REQUEST JSON', bodyJson);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ROUTES_TIMEOUT_MS);
@@ -190,7 +174,6 @@ function normalizeSegment(raw: unknown, index: number): CommuteRouteSegment | nu
   if (!o) return null;
   const type = normalizeSegmentType(o.type);
   if (!type) {
-    devLog('skip segment type', index, o.type);
     return null;
   }
   const from = String(o.from ?? o.fromName ?? '').trim();
@@ -198,7 +181,6 @@ function normalizeSegment(raw: unknown, index: number): CommuteRouteSegment | nu
   const minutesRaw = o.minutes ?? o.duration ?? o.durationMinutes;
   const minutes = typeof minutesRaw === 'number' ? minutesRaw : Number(minutesRaw);
   if (!from || !to || !Number.isFinite(minutes)) {
-    devLog('skip segment fields', index, { from, to, minutes: minutesRaw });
     return null;
   }
   const seg: CommuteRouteSegment = {
@@ -236,14 +218,12 @@ function normalizeRoute(raw: unknown, index: number): CommuteRouteJson | null {
   const totalMinutes = typeof totalRaw === 'number' ? totalRaw : Number(totalRaw);
   const segsRaw = o.segments;
   if (!id || !Number.isFinite(totalMinutes) || !Array.isArray(segsRaw)) {
-    devLog('skip route', index, { id, totalMinutes: totalRaw, hasSegments: Array.isArray(segsRaw) });
     return null;
   }
   const segments = segsRaw
     .map((s, i) => normalizeSegment(s, i))
     .filter((x): x is CommuteRouteSegment => x != null);
   if (segments.length === 0) {
-    devLog('skip route — no valid segments', index);
     return null;
   }
 
@@ -263,12 +243,27 @@ function normalizeRoute(raw: unknown, index: number): CommuteRouteJson | null {
   };
 }
 
-/** API 문서 4-2: originPlaceId·destinationPlaceId만 필수 (좌표는 서버가 placeId로 조회) */
+/** API 문서 4-2: placeId 필수. 좌표가 있으면 서버의 Kakao 재조회를 건너뛸 수 있어 함께 보냄. */
 function buildCommuteRoutesRequestBody(body: CommuteRoutesRequestBody): Record<string, unknown> {
-  return {
+  const out: Record<string, unknown> = {
     originPlaceId: body.originPlaceId,
     destinationPlaceId: body.destinationPlaceId,
+    origin_place_id: body.originPlaceId,
+    destination_place_id: body.destinationPlaceId,
   };
+
+  const putCoord = (camel: string, snake: string, value: number | null | undefined) => {
+    if (value == null || !Number.isFinite(value)) return;
+    out[camel] = value;
+    out[snake] = value;
+  };
+
+  putCoord('originLat', 'origin_lat', body.originLat);
+  putCoord('originLng', 'origin_lng', body.originLng);
+  putCoord('destinationLat', 'destination_lat', body.destinationLat);
+  putCoord('destinationLng', 'destination_lng', body.destinationLng);
+
+  return out;
 }
 
 /**
@@ -278,26 +273,21 @@ export async function fetchCommuteRoutes(
   body: CommuteRoutesRequestBody,
 ): Promise<CommuteRouteJson[]> {
   const requestBody = buildCommuteRoutesRequestBody(body);
-  const requestJson = JSON.stringify(requestBody);
 
   let lastError: unknown;
   for (let attempt = 0; attempt < ROUTES_MAX_ATTEMPTS; attempt++) {
     try {
       if (attempt > 0) {
-        devLog('retry…');
+        logStatus('commuteRoutes', '재시도');
         await sleep(1500);
       }
       const payload = await postCommuteRoutes(requestBody);
       const routes = parseCommuteRoutesPayload(payload);
-      devLog('OK', {
-        routeCount: routes.length,
-        ids: routes.map((r) => r.id),
-        tags: routes.map((r) => r.tag ?? ''),
-      });
+      logStatus('commuteRoutes', `완료 routes=${routes.length}`);
       return routes;
     } catch (error) {
       lastError = error;
-      devLogFailure(error, requestJson, attempt);
+      logCommuteFailure(error, attempt);
       if (attempt === 0 && isRetriableCommuteRoutesError(error)) {
         continue;
       }
@@ -311,9 +301,6 @@ export async function fetchCommuteRoutes(
 function parseCommuteRoutesPayload(payload: CommuteRoutesApiResponse): CommuteRouteJson[] {
   if (!payload || payload.success === false) {
     const err = payload?.error;
-    if (__DEV__) {
-      devLog('API success=false', payload);
-    }
     throw new Error(
       typeof err === 'string' && err ? err : '통근 경로를 조회하지 못했습니다.',
     );
@@ -321,9 +308,6 @@ function parseCommuteRoutesPayload(payload: CommuteRoutesApiResponse): CommuteRo
 
   const list = payload.data?.routes;
   if (!Array.isArray(list) || list.length === 0) {
-    if (__DEV__) {
-      devLog('empty routes array', payload);
-    }
     throw new Error('조회된 경로가 없습니다.');
   }
 
@@ -332,9 +316,6 @@ function parseCommuteRoutesPayload(payload: CommuteRoutesApiResponse): CommuteRo
     .filter((x): x is CommuteRouteJson => x != null);
 
   if (routes.length === 0) {
-    if (__DEV__) {
-      devLog('normalize dropped all routes — raw[0]:', formatApiErrorBodyForLog(list[0], 1200));
-    }
     throw new Error('유효한 경로 데이터가 없습니다. (응답 형식 불일치)');
   }
 

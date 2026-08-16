@@ -9,6 +9,7 @@ import {
   mapUserTypeFromProfile,
 } from '@/src/utils/onboardingProfileEdit';
 import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { UserAvatarPickerModal } from '@/src/components/profile/UserAvatarPickerModal';
 import {
   getUserAvatarSource,
@@ -248,7 +249,7 @@ export default function Onboarding_3() {
       {/* 회색 바 */}
       <View style={styles.divider} />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
@@ -433,7 +434,7 @@ export default function Onboarding_3() {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <UserAvatarPickerModal
         visible={avatarPickerVisible}

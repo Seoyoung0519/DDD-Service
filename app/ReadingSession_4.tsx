@@ -19,8 +19,11 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 import { fetchCommuteRoutes } from '@/src/api/commuteRoutes';
+import { logStatus, logWarn } from '@/src/utils/appLog';
 import {
   fetchRecentCommuteRoutes,
   saveRecentCommuteRoute,
@@ -142,7 +145,7 @@ export default function ReadingSession_4() {
       const list = await fetchRecentCommuteRoutes();
       setRecentRoutes(list);
     } catch (e) {
-      console.warn('[ReadingSession_4] 최근 경로 조회 실패:', e);
+      logWarn('ReadingSession_4', '최근 경로 조회 실패');
       setRecentRoutes([]);
     } finally {
       setRecentRoutesLoading(false);
@@ -302,16 +305,7 @@ export default function ReadingSession_4() {
       user = await fetchCurrentUser();
       const sessionDraft = buildSessionDraft(user);
 
-      if (__DEV__) {
-        console.warn('[ReadingSession_4] commute route lookup', {
-          originPlaceId: resolvedOrigin,
-          destinationPlaceId: resolvedDestination,
-          originLat,
-          originLng,
-          destinationLat,
-          destinationLng,
-        });
-      }
+      logStatus('ReadingSession_4', '통근 경로 조회 시작');
 
       const routes = await fetchCommuteRoutes({
         originPlaceId: resolvedOrigin,
@@ -355,10 +349,8 @@ export default function ReadingSession_4() {
           originLng: saveOLng,
           destinationLat: saveDLat,
           destinationLng: saveDLng,
-        }).catch((e) => {
-          if (__DEV__) {
-            console.warn('[ReadingSession_4] 최근 경로 저장 실패:', e);
-          }
+        }).catch(() => {
+          logWarn('ReadingSession_4', '최근 경로 저장 실패');
         });
       }
 
@@ -381,9 +373,7 @@ export default function ReadingSession_4() {
         error instanceof Error
           ? error.message
           : String(error ?? '알 수 없는 오류');
-      if (__DEV__) {
-        console.warn('[ReadingSession_4] commute routes failed → fallback:', msg, error);
-      }
+      logWarn('ReadingSession_4', '통근 경로 조회 실패 — 안내 후 중단');
 
       const devOriginLat = originLat ?? DEMO_COMMUTE_COORDS.origin.lat;
       const devOriginLng = originLng ?? DEMO_COMMUTE_COORDS.origin.lng;
@@ -473,8 +463,8 @@ export default function ReadingSession_4() {
           setDestinationLat(dlat != null && Number.isFinite(dlat) ? dlat : null);
           setDestinationLng(dlng != null && Number.isFinite(dlng) ? dlng : null);
         }
-      } catch (e) {
-        console.warn('[ReadingSession_4] 최근 경로 → placeId 매칭 실패:', e);
+      } catch {
+        logWarn('ReadingSession_4', '최근 경로 placeId 매칭 실패');
       } finally {
         setResolvingRecentRoute(false);
       }
@@ -503,7 +493,7 @@ export default function ReadingSession_4() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* 상단 헤더 - 읽을 책 PICK 화면과 동일 */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -577,8 +567,8 @@ export default function ReadingSession_4() {
               </View>
             </View>
 
-            <ScrollView
-                style={[styles.modalFormScroll, { maxHeight: modalFormScrollMaxHeight }]}
+            <KeyboardAwareScrollView
+                style={[styles.modalFormScroll, { maxHeight: modalFormScrollMaxHeight, flexGrow: 0 }]}
                 contentContainerStyle={styles.modalFormScrollContent}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}>
@@ -637,13 +627,13 @@ export default function ReadingSession_4() {
                     ))}
                   </View>
                 )}
-              </ScrollView>
+              </KeyboardAwareScrollView>
           </View>
         </View>
       </Modal>
 
       {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => {
@@ -732,7 +722,7 @@ export default function ReadingSession_4() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }

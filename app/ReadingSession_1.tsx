@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
+    ActivityIndicator,
     Dimensions,
     Image,
-    Modal,
     Platform,
     StyleSheet,
     Text,
@@ -13,9 +13,11 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 
 import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 import { hasPendingCommuteReadingRecommend } from '@/src/state/commuteReadingRecommend';
+import { consumeHideReadingPickModalOnce } from '@/src/state/readingPickGate';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -77,46 +79,50 @@ const FONTS = {
 
 export default function ReadingSession_1() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ hidePickModal?: string }>();
+  useLocalSearchParams();
   const [activeNav, setActiveNav] = useState('책읽기');
-  const [modalVisible, setModalVisible] = useState(() => params.hidePickModal !== '1');
+  const [modalVisible, setModalVisible] = useState(true);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isOpeningList, setIsOpeningList] = useState(false);
 
-  /** 통근 분량 추천 진입 시 — PICK 모달을 띄우지 않아 메인 독서 화면이 보이게 */
-  useEffect(() => {
-    if (params.hidePickModal === '1') {
-      setModalVisible(false);
-    }
-  }, [params.hidePickModal]);
+  /** 시작하기 재진입 때마다 PICK을 연다. 통근 진입만 한 번 숨김 */
+  useFocusEffect(
+    useCallback(() => {
+      const hidePick =
+        consumeHideReadingPickModalOnce() || hasPendingCommuteReadingRecommend();
+      setModalVisible(!hidePick);
+      if (!hidePick) setSelectedOption(null);
 
-  /** 경로 결과 → 책읽기로 온 뒤, 분량 추천 모달을 그 위에 표시 */
-  useEffect(() => {
-    if (!hasPendingCommuteReadingRecommend()) return;
-    const t = setTimeout(() => {
-      router.push('/CommuteReadingRecommendScreen');
-    }, 0);
-    return () => clearTimeout(t);
-  }, [router]);
+      if (!hasPendingCommuteReadingRecommend()) return undefined;
+      const t = setTimeout(() => {
+        if (hasPendingCommuteReadingRecommend()) {
+          router.push('/CommuteReadingRecommendScreen');
+        }
+      }, 50);
+      return () => clearTimeout(t);
+    }, [router]),
+  );
 
   const handleClose = () => {
     setModalVisible(false);
-    router.push('/ReadingIntroScreen');
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/ReadingIntroScreen');
   };
 
   const handleNext = () => {
+    if (!selectedOption || isOpeningList) return;
+    setIsOpeningList(true);
     if (selectedOption === 'bookshelf') {
-      // 책장에서 불러오기 — PICK 화면이 스택에 남지 않도록 replace (뒤에 겹쳐 보이지 않게)
-      setModalVisible(false);
       router.replace('/ReadingSession_3');
     } else if (selectedOption === 'reading') {
-      // 독서 중인 책 — 목록은 ReadingSession_2에서 로드 (전체 화면 반투명 로딩)
-      setModalVisible(false);
       router.replace('/ReadingSession_2');
     }
   };
 
   const handleSelectOption = (option: string) => {
-    // 이미 선택된 옵션을 다시 클릭하면 선택 해제
     if (selectedOption === option) {
       setSelectedOption(null);
     } else {
@@ -124,8 +130,92 @@ export default function ReadingSession_1() {
     }
   };
 
+  const pickModal = (
+    <View style={styles.pickHost} pointerEvents="box-none">
+      <View style={styles.modalDim} />
+      <View style={styles.modalCenter} pointerEvents="box-none">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>읽을 책 PICK</Text>
+            <View style={styles.modalHeaderButtons}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleClose}
+                activeOpacity={0.7}>
+                <Text style={styles.closeButtonText}>이전</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.nextButton,
+                  (!selectedOption || isOpeningList) && styles.nextButtonDisabled,
+                ]}
+                onPress={handleNext}
+                disabled={!selectedOption || isOpeningList}
+                activeOpacity={0.7}>
+                <Text
+                  style={[
+                    styles.nextButtonText,
+                    (!selectedOption || isOpeningList) && styles.nextButtonTextDisabled,
+                  ]}>
+                  {isOpeningList ? '불러오는 중' : '다음'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.optionsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.optionButton,
+                selectedOption === 'bookshelf' && styles.optionButtonSelected,
+              ]}
+              onPress={() => handleSelectOption('bookshelf')}
+              disabled={isOpeningList}
+              activeOpacity={0.7}>
+              <Text style={styles.optionTitle}>
+                책장에서{'\n'}불러오기
+              </Text>
+              <View style={styles.optionIconContainer1}>
+                <Image source={BOOKSHELF_ICON} style={styles.optionIcon1} resizeMode="contain" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.optionButton,
+                selectedOption === 'reading' && styles.optionButtonSelected,
+              ]}
+              onPress={() => handleSelectOption('reading')}
+              disabled={isOpeningList}
+              activeOpacity={0.7}>
+              <Text style={styles.optionTitle}>독서 중인 책 불러오기</Text>
+              <View style={styles.optionIconContainer2}>
+                <Image source={READING_BOOK_ICON} style={styles.optionIcon2} resizeMode="contain" />
+              </View>
+            </TouchableOpacity>
+            {isOpeningList ? (
+              <View style={styles.pickLoadingOverlay} pointerEvents="auto">
+                <ActivityIndicator size="large" color={COLORS.PRIMARY} />
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.infoContainer}>
+            <Text style={styles.infoText}>
+              • 새로운 책을 읽고 싶으시다면 서랍장 페이지에서 먼저 책을 추가해주신 후 이용해주세요!
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  if (modalVisible) {
+    return pickModal;
+  }
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* 상단 헤더 */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -160,87 +250,7 @@ export default function ReadingSession_1() {
         </View>
       </View>
 
-      {/* 모달 팝업 */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={handleClose}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            {/* 모달 헤더 */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>읽을 책 PICK</Text>
-              <View style={styles.modalHeaderButtons}>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={handleClose}
-                  activeOpacity={0.7}>
-                  <Text style={styles.closeButtonText}>이전</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.nextButton,
-                    !selectedOption && styles.nextButtonDisabled,
-                  ]}
-                  onPress={handleNext}
-                  disabled={!selectedOption}
-                  activeOpacity={0.7}>
-                  <Text
-                    style={[
-                      styles.nextButtonText,
-                      !selectedOption && styles.nextButtonTextDisabled,
-                    ]}>
-                    다음
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* 옵션 버튼들 */}
-            <View style={styles.optionsContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  selectedOption === 'bookshelf' && styles.optionButtonSelected,
-                ]}
-                onPress={() => handleSelectOption('bookshelf')}
-                activeOpacity={0.7}>
-                <Text style={styles.optionTitle}>
-                  책장에서{'\n'}불러오기
-                </Text>
-                <View style={styles.optionIconContainer1}>
-                  <Image source={BOOKSHELF_ICON} style={styles.optionIcon1} resizeMode="contain" />
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.optionButton,
-                  selectedOption === 'reading' && styles.optionButtonSelected,
-                ]}
-                onPress={() => handleSelectOption('reading')}
-                activeOpacity={0.7}>
-                <Text style={styles.optionTitle}>독서 중인 책 불러오기</Text>
-                <View style={styles.optionIconContainer2}>
-                  <Image source={READING_BOOK_ICON} style={styles.optionIcon2} resizeMode="contain" />
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* 안내 문구 */}
-            <View style={styles.infoContainer}>
-              <Text style={styles.infoText}>
-                • 새로운 책을 읽고 싶으시다면 서랍장 페이지에서 먼저 책을 추가해주신 후 이용해주세요!
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-
-      {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => {
@@ -267,7 +277,6 @@ export default function ReadingSession_1() {
           style={styles.navItem}
           onPress={() => {
             setActiveNav('책읽기');
-            // 현재 페이지이므로 이동하지 않음
           }}>
           <Image
             source={READING_ICON}
@@ -329,7 +338,7 @@ export default function ReadingSession_1() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }
@@ -430,9 +439,16 @@ const styles = StyleSheet.create({
     color: COLORS.PRIMARY_GREEN,
     fontFamily: FONTS.BOLD,
   },
-  modalOverlay: {
+  pickHost: {
     flex: 1,
+    backgroundColor: 'transparent',
+  },
+  modalDim: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: COLORS.MODAL_OVERLAY,
+  },
+  modalCenter: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -442,11 +458,6 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH * 0.9,
     maxWidth: 400,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -503,6 +514,15 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 24,
     overflow: 'visible',
+    position: 'relative',
+  },
+  pickLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.82)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   optionButton: {
     flex: 1,

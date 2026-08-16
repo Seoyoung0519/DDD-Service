@@ -16,6 +16,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { getRecentBooks, getSearchSuggestions, type RecentBook } from '../src/api/search';
 import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 import { NotificationBellButton } from '@/src/components/header/NotificationBellButton';
@@ -233,7 +235,7 @@ export default function SearchScreen_1() {
       </View>
 
       {/* 메인 콘텐츠 */}
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
@@ -331,10 +333,10 @@ export default function SearchScreen_1() {
             </View>
           )}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => {
@@ -404,7 +406,7 @@ export default function SearchScreen_1() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }

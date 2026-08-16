@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 import { getBookDetail, searchBooks, type SearchBookItem } from '../src/api/search';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -215,7 +216,7 @@ export default function SearchResult() {
       )}
 
       {/* 하단 네비게이션 바 */}
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => {
@@ -286,7 +287,7 @@ export default function SearchResult() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
     </SafeAreaView>
   );
 }

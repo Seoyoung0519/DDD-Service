@@ -154,15 +154,9 @@ export async function startReadingSession(
     body.destinationLng = dLng;
   }
 
-  /** 개발 빌드: Metro에서 실제 전송 JSON 확인 (RN은 브라우저 네트워크 탭 없음) */
+  /** 개발 빌드: Metro에서 세션 시작 요청 상태만 확인 */
   if (__DEV__) {
-    console.log(
-      '[readingSession] POST /api/reading/sessions\n',
-      'URL:',
-      url,
-      '\nBody (JSON):',
-      JSON.stringify(body, null, 2),
-    );
+    console.log('[readingSession] POST /api/reading/sessions');
   }
 
   const res = await fetch(url, {
@@ -215,7 +209,7 @@ export async function finishReadingSession(
   };
 
   if (__DEV__) {
-    console.log('[readingSession] PATCH finish\n', url, '\n', JSON.stringify(body, null, 2));
+    console.log('[readingSession] PATCH finish');
   }
 
   const res = await fetch(url, {

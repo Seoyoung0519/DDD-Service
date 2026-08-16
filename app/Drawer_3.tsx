@@ -16,12 +16,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
 import { AppMenuButton } from '@/src/components/header/AppMenuButton';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { type BookshelfItem } from '../src/api/bookshelf';
 import { searchBooks, type SearchBookItem } from '../src/api/search';
 import AddToShelfModal from './AddToShelfModal';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // 이미지 경로 (app 바로 아래에 있으므로 한 단계만 올라감)
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
@@ -344,7 +346,7 @@ export default function AddBookScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.bottomNav}>
+      <AppBottomNavBar>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setActiveNav('투데이')}>
@@ -427,13 +429,17 @@ export default function AddBookScreen() {
             내서재
           </Text>
         </TouchableOpacity>
-      </View>
+      </AppBottomNavBar>
 
       {/* 반투명 어두운 오버레이 */}
       <View style={styles.overlay}>
         {/* 모달 다이얼로그 */}
         <View style={styles.modal}>
           <View style={styles.modalContent}>
+            <KeyboardAwareScrollView
+              style={{ flexGrow: 0, maxHeight: SCREEN_HEIGHT * 0.55 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}>
             <Text style={styles.modalTitle}>내 책장에 담기</Text>
             <Text style={styles.modalDescription}>
               책장에 넣을 도서를 검색해 선택하세요.
@@ -453,7 +459,7 @@ export default function AddBookScreen() {
             </View>
 
             {/* 검색 결과 리스트 */}
-            <ScrollView style={styles.searchResultsContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.searchResultsContainer}>
               {loading ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color={COLORS.PRIMARY} />
@@ -485,7 +491,8 @@ export default function AddBookScreen() {
                   <Text style={styles.emptyText}>검색 결과가 없습니다.</Text>
                 </View>
               ) : null}
-            </ScrollView>
+            </View>
+            </KeyboardAwareScrollView>
           </View>
 
           {/* 하단 버튼 */}
@@ -917,7 +924,6 @@ const styles = StyleSheet.create({
     color: COLORS.BACKGROUND,
   },
   searchResultsContainer: {
-    maxHeight: 300,
     marginTop: 16,
   },
   loadingContainer: {

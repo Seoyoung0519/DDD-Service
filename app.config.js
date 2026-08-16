@@ -8,7 +8,12 @@ const skipCommuteRouteSearch =
   String(process.env.EXPO_PUBLIC_SKIP_COMMUTE_ROUTE_SEARCH ?? '').trim().toLowerCase() ===
   'true';
 
-const plugins = ['./plugins/withKakaoMavenRepository.js', ...(appJson.expo.plugins ?? [])];
+const plugins = [
+  './plugins/withKakaoMavenRepository.js',
+  './plugins/withDisableSystemFontScale.js',
+  './plugins/withTransparentNavBar.js',
+  ...(appJson.expo.plugins ?? []),
+];
 
 if (kakaoNativeAppKey) {
   plugins.push([
@@ -66,11 +71,5 @@ module.exports = {
       googleMapsApiKey: googleMapsApiKey || undefined,
       kakaoNativeAppKey: kakaoNativeAppKey || undefined,
     },
-    /** @react-native-kakao — `react-native` 필드가 TS 소스를 가리킴 */
-    transpilePackages: [
-      '@react-native-kakao/core',
-      '@react-native-kakao/user',
-      '@mj-studio/js-util',
-    ],
   },
 };

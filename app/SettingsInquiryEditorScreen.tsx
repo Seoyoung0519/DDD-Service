@@ -7,13 +7,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 import { createInquiry } from '@/src/api/inquiries';
 
@@ -54,7 +54,7 @@ export default function SettingsInquiryEditorScreen() {
         <View style={styles.headerSpacer} />
       </View>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.notice}>
             <Ionicons name="information-circle-outline" size={20} color="#2C8C55" />
             <Text style={styles.noticeText}>
@@ -84,7 +84,7 @@ export default function SettingsInquiryEditorScreen() {
             textAlignVertical="top"
           />
           <Text style={styles.counter}>{content.length}/2000</Text>
-        </ScrollView>
+        </KeyboardAwareScrollView>
         <View style={styles.bottom}>
           <Pressable
             style={[styles.saveButton, (!subject.trim() || !content.trim() || saving) && styles.disabled]}

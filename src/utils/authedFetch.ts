@@ -2,6 +2,7 @@
 
 import { MAIN_API_BASE_URL } from '@/src/config/api';
 import { getMainApiAccessToken } from '@/src/services/auth/authService';
+import { logError } from '@/src/utils/appLog';
 
 export async function authedFetch(path: string, options: RequestInit = {}) {
   const token = await getMainApiAccessToken();
@@ -17,8 +18,7 @@ export async function authedFetch(path: string, options: RequestInit = {}) {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    console.error('[API] Error:', res.status, text);
+    logError('API', `요청 실패 status=${res.status}`);
     throw new Error('API 요청 실패');
   }
 

@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -22,6 +21,7 @@ import {
   updateAdminNotice,
 } from '@/src/api/notices';
 import { AdminRouteGuard } from '@/src/components/admin/AdminRouteGuard';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 function AdminNoticeEditorContent() {
   const router = useRouter();
@@ -107,7 +107,7 @@ function AdminNoticeEditorContent() {
         </View>
       ) : (
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView contentContainerStyle={styles.contentWrap} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollView style={styles.flex} contentContainerStyle={styles.contentWrap} keyboardShouldPersistTaps="handled">
             <View style={styles.card}>
               <Text style={styles.label}>공지 제목 *</Text>
               <TextInput
@@ -167,7 +167,7 @@ function AdminNoticeEditorContent() {
                 </Text>
               </View>
             ) : null}
-          </ScrollView>
+          </KeyboardAwareScrollView>
           <View style={styles.bottom}>
             <Pressable
               style={[styles.saveButton, (!title.trim() || saving) && styles.disabled]}

@@ -1,15 +1,8 @@
 /**
- * 대독 통계 — 연한 민트 배경 카드 + 막대 UI, 탭 시 뒤집혀 요약 문구 표시
+ * 대독 통계 — 연한 민트 배경 카드 + 완독 권수·연속 독서 막대
  */
-import React, { useCallback, useRef } from 'react';
-import {
-  Animated,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import type { ReadingStatsData } from './types';
 import { VerticalProgressBar } from './VerticalProgressBar';
@@ -26,101 +19,32 @@ export type StatsCardProps = {
 const CARD_ASPECT_WIDTH_OVER_HEIGHT = 1 / 0.65;
 
 export function StatsCard({ data }: StatsCardProps) {
-  const flip = useRef(new Animated.Value(0)).current;
-  const flipped = useRef(false);
-
-  const frontRotate = flip.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-  const backRotate = flip.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['180deg', '360deg'],
-  });
-
-  const handlePress = useCallback(() => {
-    const toValue = flipped.current ? 0 : 1;
-    flipped.current = !flipped.current;
-    Animated.spring(flip, {
-      toValue,
-      friction: 8,
-      tension: 65,
-      useNativeDriver: true,
-    }).start();
-  }, [flip]);
-
   return (
     <View style={styles.shrinkWrap}>
-      <Pressable
-        onPress={handlePress}
-        accessibilityRole="button"
-        accessibilityLabel="대독 통계 카드"
-        accessibilityHint="탭하면 앞면과 뒷면이 전환됩니다">
-        <View style={styles.flipContainer}>
-          {/* 앞면 */}
-          <Animated.View
-            style={[
-              styles.face,
-              styles.faceFront,
-              {
-                transform: [{ perspective: 1000 }, { rotateY: frontRotate }],
-              },
-            ]}>
-            <View
-              style={styles.root}
-              accessibilityRole="summary"
-              accessibilityLabel="대독 통계 완독 권수와 연속 독서 일수">
-              <View style={styles.bgMint} />
-              <View style={styles.barsLayer} pointerEvents="box-none">
-                <VerticalProgressBar
-                  label="완독 권수"
-                  current={data.booksRead}
-                  max={data.maxBooksRead}
-                  valueSuffix="권"
-                  fillColor="#16A34A"
-                  trackColor="rgba(255,255,255,0.45)"
-                />
-                <VerticalProgressBar
-                  label="연속 독서(일)"
-                  current={data.streakDays}
-                  max={data.maxStreakDays}
-                  valueSuffix="일"
-                  fillColor="#16A34A"
-                  trackColor="rgba(255,255,255,0.45)"
-                />
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* 뒷면 — 앞면과 동일 배경·동일 크기 */}
-          <Animated.View
-            style={[
-              styles.face,
-              styles.faceBack,
-              {
-                transform: [{ perspective: 1000 }, { rotateY: backRotate }],
-              },
-            ]}>
-            <View style={styles.root}>
-              <View style={styles.bgMint} />
-              <View style={styles.backTextLayer} pointerEvents="none">
-                <Text style={styles.backText}>
-                  이번 한달 간 연속으로{' '}
-                  <Text style={styles.backTextAccent}>
-                    {data.streakDays}일
-                  </Text>
-                  을 대독단과{'\n'}
-                  함께 하고{' '}
-                  <Text style={styles.backTextAccent}>
-                    {data.booksRead}권
-                  </Text>
-                  을 완독했어요!
-                </Text>
-              </View>
-            </View>
-          </Animated.View>
+      <View
+        style={styles.card}
+        accessibilityRole="summary"
+        accessibilityLabel="대독 통계 완독 권수와 연속 독서 일수">
+        <View style={styles.bgMint} />
+        <View style={styles.barsLayer} pointerEvents="box-none">
+          <VerticalProgressBar
+            label="완독 권수"
+            current={data.booksRead}
+            max={data.maxBooksRead}
+            valueSuffix="권"
+            fillColor="#16A34A"
+            trackColor="rgba(255,255,255,0.45)"
+          />
+          <VerticalProgressBar
+            label="연속 독서(일)"
+            current={data.streakDays}
+            max={data.maxStreakDays}
+            valueSuffix="일"
+            fillColor="#16A34A"
+            trackColor="rgba(255,255,255,0.45)"
+          />
         </View>
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -130,28 +54,9 @@ const styles = StyleSheet.create({
   shrinkWrap: {
     marginHorizontal: 2.8,
   },
-  flipContainer: {
+  card: {
     width: '100%',
     aspectRatio: CARD_ASPECT_WIDTH_OVER_HEIGHT,
-  },
-  face: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-    overflow: 'hidden',
-    backfaceVisibility: 'hidden',
-  },
-  faceFront: {
-    zIndex: 2,
-  },
-  faceBack: {
-    zIndex: 1,
-  },
-  root: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -171,31 +76,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 32,
     paddingBottom: 24,
-  },
-  backTextLayer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-  },
-  backText: {
-    fontSize: 17,
-    lineHeight: 26,
-    fontWeight: '700',
-    color: '#111111',
-    textAlign: 'center',
-    letterSpacing: -0.2,
-    textShadowColor: 'rgba(255,255,255,0.95)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
-    ...Platform.select({
-      android: { fontFamily: 'sans-serif-medium' },
-    }),
-  },
-  /** 뒷면 — 일수·권수만 초록 강조 */
-  backTextAccent: {
-    color: '#16A34A',
-    fontWeight: '800',
   },
 });

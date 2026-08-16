@@ -22,24 +22,28 @@ export function VerticalProgressBar({
   trackColor = 'rgba(255,255,255,0.35)',
 }: VerticalProgressBarProps) {
   const safeMax = max > 0 ? max : 1;
-  const ratio = Math.min(1, Math.max(0, current / safeMax));
+  const safeCurrent = Number.isFinite(current) ? Math.max(0, current) : 0;
+  const ratio = Math.min(1, safeCurrent / safeMax);
+  const fillHeight = ratio <= 0 ? 0 : BAR_H * ratio;
 
   return (
     <View style={styles.wrap} accessibilityRole="none">
-      <Text style={styles.valueText} accessibilityLabel={`${current}${valueSuffix}`}>
-        {current}
+      <Text style={styles.valueText} accessibilityLabel={`${safeCurrent}${valueSuffix}`}>
+        {safeCurrent}
         {valueSuffix}
       </Text>
       <View style={[styles.track, { backgroundColor: trackColor }]}>
-        <View
-          style={[
-            styles.fill,
-            {
-              height: Math.max(4, BAR_H * ratio),
-              backgroundColor: fillColor,
-            },
-          ]}
-        />
+        {fillHeight > 0 ? (
+          <View
+            style={[
+              styles.fill,
+              {
+                height: fillHeight,
+                backgroundColor: fillColor,
+              },
+            ]}
+          />
+        ) : null}
       </View>
       <Text style={styles.label}>{label}</Text>
     </View>
@@ -66,7 +70,6 @@ const styles = StyleSheet.create({
     width: '100%',
     borderBottomLeftRadius: 10,
     borderBottomRightRadius: 10,
-    minHeight: 4,
   },
   /** 6권 · 6일 — 가벼운 두께 */
   valueText: {

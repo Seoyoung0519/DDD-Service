@@ -261,13 +261,7 @@ export async function generateKeyring(
   const body = buildGenerateKeyringBody(payload.bookId);
 
   if (__DEV__) {
-    console.log(
-      '[keyring] POST /badges/keyring',
-      'JSON key:',
-      KEYRING_CREATE_BOOK_ID_JSON_KEY,
-      'body:',
-      body,
-    );
+    console.log('[keyring] POST /badges/keyring');
   }
 
   const res = await authorizedFetch(url, {
@@ -312,15 +306,7 @@ export async function fetchKeyrings(): Promise<Keyring[]> {
       throw new KeyringInvalidTokenError();
     }
     if (__DEV__) {
-      console.error(
-        '[keyring] GET /keyrings failed',
-        '\n  url:',
-        url,
-        '\n  status:',
-        res.status,
-        '\n  body:',
-        text?.slice(0, 600) || '(empty)',
-      );
+      console.error('[keyring] GET /keyrings failed', `status=${res.status}`);
     }
     throw new Error(formatKeyringListError(res.status, text));
   }

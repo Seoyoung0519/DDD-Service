@@ -8,6 +8,8 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AdminReturnFab } from '@/src/components/admin/AdminReturnFab';
+import { useAppFonts } from '@/src/theme/appFonts';
+import '@/src/theme/disableSystemFontScaling';
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -20,10 +22,16 @@ const ROOT_STACK_BG = '#E8F3ED';
  */
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [fontsLoaded, fontError] = useAppFonts();
+  const fontsReady = fontsLoaded || !!fontError;
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(ROOT_STACK_BG);
   }, []);
+
+  if (!fontsReady) {
+    return null;
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -37,6 +45,14 @@ export default function RootLayout() {
         <Stack.Screen
           name="ReadingSessionScreen"
           options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="ReadingSession_1"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'fade',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
         />
         <Stack.Screen name="ReadingSession_4" options={{ animation: 'none' }} />
         <Stack.Screen

@@ -33,13 +33,16 @@ export type CommuteRouteResultPayload = {
 };
 
 let pending: CommuteRouteResultPayload | null = null;
+/** consume 후에도 잠시 유지 — 화면 리마운트 시 payload가 사라지지 않게 */
+let held: CommuteRouteResultPayload | null = null;
 
 export function setCommuteRouteResult(payload: CommuteRouteResultPayload) {
   pending = payload;
+  held = payload;
 }
 
 export function consumeCommuteRouteResult(): CommuteRouteResultPayload | null {
-  const out = pending;
+  const out = pending ?? held;
   pending = null;
   return out;
 }

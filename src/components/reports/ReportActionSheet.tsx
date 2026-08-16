@@ -7,13 +7,13 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { createReport, type ReportTargetType } from '@/src/api/reports';
 
 const REASONS = ['욕설·비방', '스팸·광고', '음란·부적절한 내용', '사칭·허위 정보', '기타'];
@@ -114,7 +114,7 @@ export function ReportActionSheet({
                   <Ionicons name="close" size={24} color="#555555" />
                 </Pressable>
               </View>
-              <ScrollView
+              <KeyboardAwareScrollView
                 style={styles.formScroll}
                 contentContainerStyle={styles.formContent}
                 keyboardShouldPersistTaps="handled">
@@ -151,7 +151,7 @@ export function ReportActionSheet({
                   textAlignVertical="top"
                 />
                 <Text style={styles.counter}>{description.length}/500</Text>
-              </ScrollView>
+              </KeyboardAwareScrollView>
               <Pressable
                 style={[styles.submitButton, (!reason || submitting) && styles.submitDisabled]}
                 disabled={!reason || submitting}

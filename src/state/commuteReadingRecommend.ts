@@ -26,13 +26,16 @@ export type CommuteReadingRecommendPayload = {
 };
 
 let pending: CommuteReadingRecommendPayload | null = null;
+/** consume 후에도 잠시 유지 — 화면 리마운트 시 payload가 사라지지 않게 */
+let held: CommuteReadingRecommendPayload | null = null;
 
 export function setCommuteReadingRecommend(payload: CommuteReadingRecommendPayload) {
   pending = payload;
+  held = payload;
 }
 
 export function consumeCommuteReadingRecommend(): CommuteReadingRecommendPayload | null {
-  const out = pending;
+  const out = pending ?? held;
   pending = null;
   return out;
 }

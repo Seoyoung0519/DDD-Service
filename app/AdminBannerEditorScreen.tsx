@@ -11,7 +11,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -27,6 +26,8 @@ import {
   type CreateBannerInput,
 } from '@/src/api/banners';
 import { AdminRouteGuard } from '@/src/components/admin/AdminRouteGuard';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
+import { remoteImageSource } from '@/src/utils/mediaUrl';
 
 const COLORS = {
   primary: '#2C8C55',
@@ -266,7 +267,8 @@ function AdminBannerEditorContent() {
         <KeyboardAvoidingView
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
+          <KeyboardAwareScrollView
+            style={styles.flex}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
@@ -291,8 +293,11 @@ function AdminBannerEditorContent() {
               autoCorrect={false}
               keyboardType="url"
             />
+            <Text style={styles.hint}>
+              실제 이미지 파일 주소(jpg/png)를 넣어 주세요. Bing 검색 썸네일은 앱에서 막히는 경우가 많습니다.
+            </Text>
             {previewVisible ? (
-              <Image source={{ uri: imageUrl.trim() }} style={styles.preview} contentFit="cover" />
+              <Image source={remoteImageSource(imageUrl.trim())} style={styles.preview} contentFit="cover" />
             ) : (
               <View style={styles.previewPlaceholder}>
                 <Ionicons name="image-outline" size={32} color="#AAAAAA" />
@@ -361,7 +366,7 @@ function AdminBannerEditorContent() {
                 <Text style={styles.saveButtonText}>{isEditing ? '수정 저장' : '배너 등록'}</Text>
               )}
             </Pressable>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </KeyboardAvoidingView>
       )}
 
@@ -409,6 +414,7 @@ const styles = StyleSheet.create({
   },
   content: { padding: 20, paddingBottom: 40 },
   label: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 8, marginTop: 18 },
+  hint: { marginTop: 8, fontSize: 12, lineHeight: 18, color: '#888888' },
   input: {
     minHeight: 50,
     borderRadius: 11,

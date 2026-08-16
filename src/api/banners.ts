@@ -125,14 +125,25 @@ async function requestBannerApi<T>(
   return body as T;
 }
 
+function unwrapBannerList(data: unknown): Banner[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    const record = data as Record<string, unknown>;
+    for (const key of ['banners', 'items', 'data', 'results']) {
+      if (Array.isArray(record[key])) return record[key] as Banner[];
+    }
+  }
+  return [];
+}
+
 /** 앱 홈에 현재 노출 가능한 활성 배너만 조회합니다. */
 export async function fetchBanners(): Promise<Banner[]> {
   try {
-    return await requestBannerApi<Banner[]>('/api/banners');
+    return unwrapBannerList(await requestBannerApi<unknown>('/api/banners'));
   } catch (error) {
     // 명세상 공개 API지만 현재 배포 서버가 Authorization을 요구하는 경우 로그인 JWT로 재시도합니다.
     if (error instanceof BannerApiError && error.status === 401) {
-      return requestBannerApi<Banner[]>('/api/banners', {}, true);
+      return unwrapBannerList(await requestBannerApi<unknown>('/api/banners', {}, true));
     }
     throw error;
   }

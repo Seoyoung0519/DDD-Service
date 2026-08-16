@@ -8,7 +8,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LoginHeaderPattern } from '@/src/components/login/LoginWaveDivider';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { SocialLoginCircles } from '@/src/components/login/SocialLoginCircles';
 import {
   GoogleLoginResult,
@@ -38,7 +38,7 @@ import { resolveAgreementsGateRoute } from '@/src/services/settings/agreementGat
 import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
 import { syncExtendedApiSession } from '@/src/utils/extendedApiAuth';
 
-const APP_LOGO = require('../assets/images/login/login_logo.png');
+const APP_LOGO = require('../assets/images/brand/daedokdan-logo.png');
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const HEADER_HEIGHT = Math.min(SCREEN_H * 0.38, 320);
@@ -66,6 +66,7 @@ export default function LoginScreen() {
   const [resendSeconds, setResendSeconds] = useState(0);
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const emailRequestInFlightRef = useRef(false);
+  const codeSentToEmailRef = useRef('');
 
   const onLoginSuccess = useCallback(async () => {
     try {
@@ -137,6 +138,7 @@ export default function LoginScreen() {
     setIsEmailLoading(true);
     try {
       await sendEmailVerificationCode(normalizedEmail);
+      codeSentToEmailRef.current = normalizedEmail;
       setIsCodeSent(true);
       setVerificationCode('');
       setResendSeconds(EMAIL_RESEND_COOLDOWN_SECONDS);
@@ -181,6 +183,22 @@ export default function LoginScreen() {
     }
   };
 
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    const sentTo = codeSentToEmailRef.current;
+    if (!sentTo) return;
+
+    const next = value.trim().toLowerCase();
+    if (next === sentTo) {
+      setIsCodeSent(true);
+      return;
+    }
+
+    setIsCodeSent(false);
+    setVerificationCode('');
+    setResendSeconds(0);
+  };
+
   const handleEmailContinue = () => {
     if (isCodeSent) void handleEmailLogin();
     else void handleSendCode();
@@ -219,7 +237,8 @@ export default function LoginScreen() {
       <KeyboardAvoidingView
         style={styles.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
+        <KeyboardAwareScrollView
+          style={{ flex: 1 }}
           contentContainerStyle={[
             styles.formScroll,
             {
@@ -240,9 +259,9 @@ export default function LoginScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            editable={!isCodeSent && !isLoading}
+            editable={!isLoading}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={handleEmailChange}
             returnKeyType={isCodeSent ? 'next' : 'send'}
             onSubmitEditing={isCodeSent ? undefined : handleEmailContinue}
           />
@@ -317,7 +336,7 @@ export default function LoginScreen() {
             googleDisabled={isLoading || (Platform.OS === 'web' && !request)}
             kakaoDisabled={isLoading}
           />
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {isLoading ? (
           <View style={styles.loadingOverlay}>
@@ -346,8 +365,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   logoImage: {
-    width: 200,
-    height: 220,
+    width: 180,
+    height: 180,
   },
   body: {
     flex: 1,

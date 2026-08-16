@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { createAdminReport, type ReportTargetType } from '@/src/api/reports';
 import { AdminRouteGuard } from '@/src/components/admin/AdminRouteGuard';
+import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 
 type SupportedTarget = Extract<ReportTargetType, 'user' | 'review'>;
 
@@ -67,7 +67,7 @@ function AdminReportEditorContent() {
         <View style={styles.headerSpacer} />
       </View>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView style={styles.flex} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.description}>
             관리자 권한으로 신고 내역을 직접 등록합니다. 댓글 기능은 현재 앱에 없어 대상에서 제외했습니다.
           </Text>
@@ -135,7 +135,7 @@ function AdminReportEditorContent() {
             maxLength={500}
             textAlignVertical="top"
           />
-        </ScrollView>
+        </KeyboardAwareScrollView>
         <View style={styles.bottom}>
           <Pressable style={styles.saveButton} disabled={saving} onPress={() => void save()}>
             {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>신고 등록</Text>}
