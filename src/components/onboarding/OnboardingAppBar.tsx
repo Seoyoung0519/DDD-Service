@@ -12,7 +12,7 @@ import { AppText } from '@/src/components/ui/AppText';
 import { markOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
 import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
 
-const BUS_ICON = require('../../../assets/images/onboarding/daedokdan-bus.png');
+const BUS_ICON = require('../../../assets/images/onboarding/daedokdan-bus-v2.png');
 
 type OnboardingAppBarProps = {
   /** welcome(첫 화면) vs step(2~8단계) */
