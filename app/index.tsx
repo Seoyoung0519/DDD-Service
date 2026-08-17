@@ -1,7 +1,6 @@
 // app/index.tsx — 앱 실행 후 첫 화면 (스플래시)
 
 import { useRouter, type Href } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { AppLaunchSplash } from '@/src/components/splash/AppLaunchSplash';
@@ -65,10 +64,9 @@ export default function SplashRoute() {
 
         if (cancelled) return;
         router.replace(route);
-      } finally {
-        if (!cancelled) {
-          await SplashScreen.hideAsync();
-        }
+      } catch (e) {
+        console.warn('[SPLASH] bootstrap failed:', e);
+        if (!cancelled) router.replace('/intro');
       }
     };
 

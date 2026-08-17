@@ -36,6 +36,7 @@ export default function RootLayout() {
     void SystemUI.setBackgroundColorAsync(ROOT_STACK_BG);
   }, []);
 
+  // 폰트 로딩 중에는 네이티브 스플래시(민트 배경)만 유지 → index의 AppLaunchSplash 1회만 표시
   if (!fontsReady) {
     return null;
   }

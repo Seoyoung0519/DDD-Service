@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/src/components/ui/AppText';
@@ -17,9 +18,18 @@ type AppLaunchSplashProps = {
 
 export function AppLaunchSplash({ tagline = '출퇴근을 독서와 함께' }: AppLaunchSplashProps) {
   const insets = useSafeAreaInsets();
+  const didHideNativeRef = useRef(false);
+
+  const hideNativeSplash = () => {
+    if (didHideNativeRef.current) return;
+    didHideNativeRef.current = true;
+    void SplashScreen.hideAsync().catch(() => {});
+  };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View
+      style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}
+      onLayout={hideNativeSplash}>
       <View style={styles.content}>
         <Image source={SPLASH_LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="대독단" />
         <AppText variant="title" weight="bold" style={styles.tagline}>

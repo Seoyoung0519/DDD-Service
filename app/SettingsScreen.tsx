@@ -29,9 +29,11 @@ type MenuItem = {
     | '/SettingsAppInfoScreen'
     | '/OtherScreen'
     | '/SettingsDeleteAccountScreen'
-    | '/AdminDashboardScreen';
+    | '/AdminDashboardScreen'
+    | '/intro';
   danger?: boolean;
   adminOnly?: boolean;
+  introFromSettings?: boolean;
 };
 
 const MENU_ITEMS: MenuItem[] = [
@@ -58,6 +60,13 @@ const MENU_ITEMS: MenuItem[] = [
     subtitle: '설치된 앱 버전과 업데이트 정보를 확인해요.',
     icon: 'information-circle-outline',
     route: '/SettingsAppInfoScreen',
+  },
+  {
+    title: '서비스 소개 다시 보기',
+    subtitle: '대독단 서비스 소개 슬라이드를 다시 확인해요.',
+    icon: 'images-outline',
+    route: '/intro',
+    introFromSettings: true,
   },
   {
     title: '대독사전',
@@ -126,6 +135,10 @@ export default function SettingsScreen() {
                 onPress={() => {
                   if (item.route === '/AdminDashboardScreen') {
                     router.replace('/AdminDashboardScreen');
+                    return;
+                  }
+                  if (item.introFromSettings) {
+                    router.push({ pathname: '/intro', params: { from: 'settings' } });
                     return;
                   }
                   router.push(item.route);

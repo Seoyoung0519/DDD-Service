@@ -29,7 +29,12 @@ const COLORS = {
   close: '#4A5D52',
 };
 
-export function ServiceIntroScreen() {
+type ServiceIntroScreenProps = {
+  /** settings에서 진입 시 닫기/완료하면 이전 화면으로 복귀 */
+  exitMode?: 'login' | 'back';
+};
+
+export function ServiceIntroScreen({ exitMode = 'login' }: ServiceIntroScreenProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList<ServiceIntroSlide>>(null);
@@ -44,8 +49,12 @@ export function ServiceIntroScreen() {
   const goToLogin = useCallback(() => {
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
+    if (exitMode === 'back') {
+      router.back();
+      return;
+    }
     router.replace(LOGIN_ROUTE);
-  }, [router]);
+  }, [router, exitMode]);
 
   const isFirstSlide = activeIndex === 0;
   const isLastSlide = activeIndex === totalSlides - 1;
@@ -62,33 +71,68 @@ export function ServiceIntroScreen() {
     setScrollOffsetX(Math.min(Math.max(offsetX, 0), maxOffset));
   };
 
-  const renderSlide = ({ item }: { item: ServiceIntroSlide }) => (
-    <View style={[styles.slide, { width: SCREEN_W }]}>
-      <View style={styles.textBlock}>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.description}>{item.description}</Text>
-      </View>
+  const renderSlide = ({ item }: { item: ServiceIntroSlide }) => {
+    const resizeMode = item.mockupResizeMode ?? 'cover';
+    const showFullImage = resizeMode === 'contain';
+    const asset = showFullImage ? Image.resolveAssetSource(item.image) : null;
+    const naturalAspect =
+      asset?.width && asset?.height ? asset.width / asset.height : 9 / 19.5;
 
-      <View style={styles.mockupArea}>
-        <View
-          style={[
-            styles.mockupWrap,
-            item.mockupHorizontalInset != null && {
-              marginHorizontal: item.mockupHorizontalInset,
-            },
-            item.mockupBottomInset != null && {
-              marginBottom: item.mockupBottomInset,
-            },
-            item.mockupHeightRatio != null && {
-              flex: 0,
-              height: SCREEN_H * item.mockupHeightRatio,
-            },
-          ]}>
-          <Image source={item.image} style={styles.mockupImage} resizeMode="cover" />
+    let containMockupSize: { width: number; height: number } | null = null;
+    if (showFullImage) {
+      const widthRatio = item.mockupWidthRatio ?? 0.72;
+      const maxHeightRatio = item.mockupMaxHeightRatio ?? 0.48;
+      let width = SCREEN_W * widthRatio;
+      let height = width / naturalAspect;
+      const maxHeight = SCREEN_H * maxHeightRatio;
+      if (height > maxHeight) {
+        height = maxHeight;
+        width = height * naturalAspect;
+      }
+      containMockupSize = { width, height };
+    }
+
+    return (
+      <View style={[styles.slide, { width: SCREEN_W }]}>
+        <View style={styles.textBlock}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.description}>{item.description}</Text>
+        </View>
+
+        <View style={styles.mockupArea}>
+          {showFullImage && containMockupSize ? (
+            <View
+              style={[
+                styles.containMockup,
+                {
+                  width: containMockupSize.width,
+                  height: containMockupSize.height,
+                },
+              ]}>
+              <Image source={item.image} style={styles.containMockupImage} resizeMode="contain" />
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.mockupWrap,
+                item.mockupHorizontalInset != null && {
+                  marginHorizontal: item.mockupHorizontalInset,
+                },
+                item.mockupBottomInset != null && {
+                  marginBottom: item.mockupBottomInset,
+                },
+                item.mockupHeightRatio != null && {
+                  flex: 0,
+                  height: SCREEN_H * item.mockupHeightRatio,
+                },
+              ]}>
+              <Image source={item.image} style={styles.mockupImage} resizeMode="cover" />
+            </View>
+          )}
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -103,7 +147,7 @@ export function ServiceIntroScreen() {
               onPress={goToLogin}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="소개 건너뛰기">
+              accessibilityLabel={exitMode === 'back' ? '서비스 소개 닫기' : '소개 건너뛰기'}>
               <Ionicons name="close" size={26} color={COLORS.close} />
             </Pressable>
           ) : isLastSlide ? (
@@ -112,7 +156,7 @@ export function ServiceIntroScreen() {
               onPress={goToLogin}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="로그인으로 이동">
+              accessibilityLabel={exitMode === 'back' ? '서비스 소개 닫기' : '로그인으로 이동'}>
               <Ionicons name="arrow-forward" size={26} color={COLORS.close} />
             </Pressable>
           ) : (
@@ -122,7 +166,7 @@ export function ServiceIntroScreen() {
       </View>
 
       <FlatList
-        key={`intro-slides-v${SERVICE_INTRO_SLIDES.length}`}
+        key={`intro-slides-v${SERVICE_INTRO_SLIDES.length}-w${SERVICE_INTRO_SLIDES[0]?.mockupWidthRatio ?? 1}`}
         ref={listRef}
         data={SERVICE_INTRO_SLIDES}
         extraData={activeIndex}
@@ -206,11 +250,20 @@ const styles = StyleSheet.create({
   mockupArea: {
     flex: 1,
     justifyContent: 'flex-end',
+    alignItems: 'center',
     paddingTop: 12,
+  },
+  containMockup: {
+    overflow: 'hidden',
+  },
+  containMockupImage: {
+    width: '100%',
+    height: '100%',
   },
   mockupWrap: {
     flex: 1,
     position: 'relative',
+    alignSelf: 'stretch',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     backgroundColor: COLORS.mockupBg,
