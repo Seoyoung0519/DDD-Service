@@ -23,6 +23,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH * 0.75;
+const CARD_HEIGHT = 232;
 
 // 이미지 경로
 const WORKER_STUDENT_IMAGE = require('../assets/images/onboarding/worker-student.png');
@@ -169,17 +171,19 @@ export default function Onboarding_2() {
       </View>
 
       {/* 하단 "다음" 버튼 */}
-      <TouchableOpacity
-        style={[styles.nextButton, submitting && { opacity: 0.7 }]}
-        onPress={handleNext}
-        disabled={submitting}
-        activeOpacity={0.6}>
-        {submitting ? (
-          <ActivityIndicator color={COLORS.BUTTON_TEXT} />
-        ) : (
-          <Text style={styles.nextButtonText}>{isEditMode ? '저장' : '다음'}</Text>
-        )}
-      </TouchableOpacity>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.nextButton, submitting && { opacity: 0.7 }]}
+          onPress={handleNext}
+          disabled={submitting}
+          activeOpacity={0.6}>
+          {submitting ? (
+            <ActivityIndicator color={COLORS.BUTTON_TEXT} />
+          ) : (
+            <Text style={styles.nextButtonText}>{isEditMode ? '저장' : '다음'}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -236,17 +240,18 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
   },
   cardsContainer: {
-    marginTop: 64,
+    marginTop: 40,
     alignItems: 'center',
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    paddingBottom: 12,
   },
   card: {
-    width: SCREEN_WIDTH * 0.75,
-    minHeight: 240,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     borderRadius: 16,
-    padding: 16,
     marginBottom: 16,
-    overflow: 'visible',
+    overflow: 'hidden',
   },
   cardSelected: {
     borderWidth: 2,
@@ -272,6 +277,8 @@ const styles = StyleSheet.create({
   },
   cardTextSection: {
     alignItems: 'center',
+    paddingTop: 16,
+    paddingHorizontal: 16,
   },
   cardTitle: {
     fontSize: 16,
@@ -289,14 +296,14 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
   },
   cardImageSection: {
+    width: '100%',
+    height: 120,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    height: 120,
-    marginTop: 8,
-    overflow: 'visible',
+    overflow: 'hidden',
   },
   cardImage: {
-    width: 160,
+    width: '92%',
     height: 120,
   },
   otherCardContent: {
@@ -311,6 +318,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: FONTS.BOLD,
   },
+  footer: {
+    paddingTop: 8,
+    paddingBottom: 24,
+    alignItems: 'center',
+    backgroundColor: COLORS.BACKGROUND,
+  },
   nextButton: {
     alignSelf: 'center',
     width: SCREEN_WIDTH * 0.8,
@@ -320,8 +333,6 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 'auto',
-    marginBottom: 32,
   },
   nextButtonText: {
     fontSize: 16,

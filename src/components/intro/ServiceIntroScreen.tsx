@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     paddingTop: 8,
-    paddingBottom: 20,
+    paddingBottom: 28,
     paddingHorizontal: 24,
     alignItems: 'center',
   },
@@ -193,12 +193,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.title,
     textAlign: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
     letterSpacing: -0.4,
   },
   description: {
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 13,
+    lineHeight: 20,
     color: COLORS.description,
     textAlign: 'center',
     maxWidth: 320,
@@ -206,6 +206,7 @@ const styles = StyleSheet.create({
   mockupArea: {
     flex: 1,
     justifyContent: 'flex-end',
+    paddingTop: 12,
   },
   mockupWrap: {
     flex: 1,

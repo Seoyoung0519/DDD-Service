@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/src/components/ui/AppText';
 
-const SPLASH_LOGO = require('../../../assets/images/splash/daedokdan-bus-logo.png');
+const SPLASH_LOGO = require('../../../assets/images/splash/daedokdan-bus-logo-v2.png');
 
 const COLORS = {
   background: '#E8F3ED',

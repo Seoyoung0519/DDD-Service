@@ -51,7 +51,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash/splash-logo.png",
+          "image": "./assets/images/splash/daedokdan-bus-logo-v2.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#E8F3ED",

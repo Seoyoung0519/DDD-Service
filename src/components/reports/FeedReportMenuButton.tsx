@@ -72,7 +72,13 @@ function AnchoredReportMenu({
               onPress={selectReport}
               accessibilityRole="button"
               accessibilityLabel={label}>
-              <Text style={styles.popupText}>{label}</Text>
+              <Text
+                style={styles.popupText}
+                numberOfLines={1}
+                allowFontScaling
+                maxFontSizeMultiplier={1.2}>
+                {label}
+              </Text>
             </Pressable>
           ) : null}
         </Pressable>
@@ -93,7 +99,7 @@ export function FeedReportMenuButton({
   return (
     <AnchoredReportMenu
       label="피드 신고하기"
-      popupWidth={124}
+      popupWidth={140}
       placement="left-below"
       verticalOffset={30}
       triggerStyle={styles.moreButton}
@@ -120,7 +126,7 @@ export function UserReportMenuButton({
   return (
     <AnchoredReportMenu
       label="프로필 신고하기"
-      popupWidth={118}
+      popupWidth={148}
       placement="below"
       verticalOffset={30}
       triggerStyle={triggerStyle}
@@ -140,7 +146,9 @@ const styles = StyleSheet.create({
   },
   popup: {
     position: 'absolute',
-    height: 38,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
@@ -157,5 +165,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#C83E3E',
+    flexShrink: 0,
+    includeFontPadding: false,
   },
 });

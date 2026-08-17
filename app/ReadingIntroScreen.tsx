@@ -61,56 +61,56 @@ export default function ReadingIntroScreen() {
   };
 
   const Card1Title = () => (
-    <AppText weight="bold" variant="title" style={styles.cardTitle}>
+    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
       읽을 책 PICK
     </AppText>
   );
 
   const Card1Description = () => (
-    <AppText variant="body" style={styles.cardDescription}>
+    <AppText scaleRole="body" style={styles.cardDescription}>
       대중교통을 이용할 동안 읽을 책을 골라주세요
     </AppText>
   );
 
   const Card2Title = () => (
-    <AppText weight="bold" variant="title" style={styles.cardTitle}>
+    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
       출·도착지 등록
     </AppText>
   );
 
   const Card2Description = () => (
-    <AppText variant="body" style={styles.cardDescription}>
-      대독단이 <AppText variant="body" style={styles.highlightText}>이동 소요시간</AppText>과 여러분의{' '}
-      <AppText variant="body" style={styles.highlightText}>책 읽는 속도</AppText> 등을 고려해{' '}
-      <AppText variant="body" style={styles.highlightText}>책 쪽수</AppText>를 추천해요
+    <AppText scaleRole="body" style={styles.cardDescription}>
+      대독단이 <AppText scaleRole="body" style={styles.highlightText}>이동 소요시간</AppText>과 여러분의{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>책 읽는 속도</AppText> 등을 고려해{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>책 쪽수</AppText>를 추천해요
     </AppText>
   );
 
   const Card3Title = () => (
-    <AppText weight="bold" variant="title" style={styles.cardTitle}>
+    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
       기록하고 인증하기
     </AppText>
   );
 
   const Card3Description = () => (
-    <AppText variant="body" style={styles.cardDescription}>
-      이동 시간동안 읽은 <AppText variant="body" style={styles.highlightText}>책 쪽수를</AppText>{' '}
-      <AppText variant="body" style={styles.highlightText}>기록하고</AppText>{' '}
-      <AppText variant="body" style={styles.highlightText}>커스텀 인증샷</AppText>을 공유해요
+    <AppText scaleRole="body" style={styles.cardDescription}>
+      이동 시간동안 읽은 <AppText scaleRole="body" style={styles.highlightText}>책 쪽수를</AppText>{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>기록하고</AppText>{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>커스텀 인증샷</AppText>을 공유해요
     </AppText>
   );
 
   const Card4Title = () => (
-    <AppText weight="bold" variant="title" style={styles.cardTitle}>
+    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
       독서하기
     </AppText>
   );
 
   const Card4Description = () => (
-    <AppText variant="body" style={styles.cardDescription}>
-      추천 쪽수대로 <AppText variant="body" style={styles.highlightText}>독서를</AppText> 시작하고{' '}
-      <AppText variant="body" style={styles.highlightText}>환승할 지점</AppText>과 도착지 한 정거장 전{' '}
-      <AppText variant="body" style={styles.highlightText}>독서 정리 알림</AppText>을 제공해요
+    <AppText scaleRole="body" style={styles.cardDescription}>
+      추천 쪽수대로 <AppText scaleRole="body" style={styles.highlightText}>독서를</AppText> 시작하고{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>환승할 지점</AppText>과 도착지 한 정거장 전{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>독서 정리 알림</AppText>을 제공해요
     </AppText>
   );
 
@@ -469,9 +469,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 10,
-    overflow: 'visible',
+    overflow: 'hidden',
     justifyContent: 'space-between',
-    minHeight: 168,
+    minHeight: 176,
   },
   cardTextBlock: {
     alignItems: 'center',
@@ -498,24 +498,27 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   highlightText: {
+    fontSize: 11,
+    lineHeight: 16,
     color: COLORS.PRIMARY_GREEN,
-    fontWeight: '600',
+    fontFamily: FONTS.MEDIUM,
+    includeFontPadding: false,
   },
   cardIconRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
     width: '100%',
-    minHeight: 52,
+    minHeight: 64,
     flexShrink: 0,
-    overflow: 'visible',
+    overflow: 'hidden',
   },
   cardImage: {
-    width: 44,
-    height: 44,
+    width: 56,
+    height: 56,
   },
   cardImageOverlap: {
-    marginLeft: -8,
+    marginLeft: -10,
   },
   arrowSlot: {
     width: 18,
