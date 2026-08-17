@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 const COLORS = {
   TEXT: '#222222',
@@ -9,10 +10,7 @@ const COLORS = {
   WHITE: '#FFFFFF',
 };
 
-const FONTS = {
-  BOLD: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 type Props = {
   visible: boolean;

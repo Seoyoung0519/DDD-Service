@@ -39,8 +39,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#EAEAEA',
     paddingTop: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: 8,
     justifyContent: 'space-around',
     alignItems: 'flex-start',
+    overflow: 'visible',
   },
 });

@@ -1,10 +1,8 @@
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
-const FONTS = {
-  MEDIUM: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 type Props = {
   currentStep: number;

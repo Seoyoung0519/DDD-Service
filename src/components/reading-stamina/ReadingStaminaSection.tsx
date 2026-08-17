@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Dimensions, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import {
   ReadingStaminaCarousel,
@@ -17,10 +18,7 @@ import { useReadingStaminaBooks, STAMINA_CAROUSEL_FETCH_LIMIT } from '@/src/comp
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 export function ReadingStaminaSection() {
   const router = useRouter();
@@ -107,10 +105,10 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   staminaSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: FONTS.REGULAR,
     color: '#777777',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   descriptionAndCarouselWrapper: {
     backgroundColor: '#F3F8E8',
@@ -129,10 +127,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   descriptionText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.REGULAR,
     color: '#222222',
-    lineHeight: 20,
+    lineHeight: 18,
     textAlign: 'center',
   },
 });

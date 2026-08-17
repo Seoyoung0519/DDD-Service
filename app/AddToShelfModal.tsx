@@ -1,3 +1,4 @@
+import { APP_FONTS } from '@/src/theme/fonts';
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import React, { useEffect, useState } from 'react';
@@ -36,29 +37,7 @@ const COLORS = {
   ERROR: '#FF3B30',
 };
 
-// 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 interface AddToShelfModalProps {
   visible: boolean;
@@ -343,7 +322,8 @@ const styles = StyleSheet.create({
     maxHeight: SCREEN_HEIGHT * 0.75,
     backgroundColor: COLORS.BACKGROUND,
     borderRadius: 16,
-    paddingVertical: 20,
+    paddingTop: 28,
+    paddingBottom: 20,
     paddingHorizontal: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -353,6 +333,7 @@ const styles = StyleSheet.create({
   },
   headerSection: {
     marginBottom: 16,
+    paddingTop: 4,
   },
   modalTitle: {
     fontSize: 18,

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   ActivityIndicator,
   Platform,
   Pressable,
@@ -123,11 +124,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     color: COLORS.text,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif-medium',
-      default: 'sans-serif',
-    }),
+    fontFamily: APP_FONTS.MEDIUM,
   },
   headerSpacer: { width: 28 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },

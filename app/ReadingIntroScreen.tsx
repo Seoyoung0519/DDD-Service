@@ -61,56 +61,56 @@ export default function ReadingIntroScreen() {
   };
 
   const Card1Title = () => (
-    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
+    <AppText weight="bold" variant="title" style={styles.cardTitle}>
       읽을 책 PICK
     </AppText>
   );
 
   const Card1Description = () => (
-    <AppText scaleRole="body" style={styles.cardDescription}>
+    <AppText variant="body" style={styles.cardDescription}>
       대중교통을 이용할 동안 읽을 책을 골라주세요
     </AppText>
   );
 
   const Card2Title = () => (
-    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
+    <AppText weight="bold" variant="title" style={styles.cardTitle}>
       출·도착지 등록
     </AppText>
   );
 
   const Card2Description = () => (
-    <AppText scaleRole="body" style={styles.cardDescription}>
-      대독단이 <AppText scaleRole="body" style={styles.highlightText}>이동 소요시간</AppText>과 여러분의{' '}
-      <AppText scaleRole="body" style={styles.highlightText}>책 읽는 속도</AppText> 등을 고려해{' '}
-      <AppText scaleRole="body" style={styles.highlightText}>책 쪽수</AppText>를 추천해요
+    <AppText variant="body" style={styles.cardDescription}>
+      대독단이 <AppText variant="body" style={styles.highlightText}>이동 소요시간</AppText>과 여러분의{' '}
+      <AppText variant="body" style={styles.highlightText}>책 읽는 속도</AppText> 등을 고려해{' '}
+      <AppText variant="body" style={styles.highlightText}>책 쪽수</AppText>를 추천해요
     </AppText>
   );
 
   const Card3Title = () => (
-    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
+    <AppText weight="bold" variant="title" style={styles.cardTitle}>
       기록하고 인증하기
     </AppText>
   );
 
   const Card3Description = () => (
-    <AppText scaleRole="body" style={styles.cardDescription}>
-      이동 시간동안 읽은 <AppText scaleRole="body" style={styles.highlightText}>책 쪽수를</AppText>{' '}
-      <AppText scaleRole="body" style={styles.highlightText}>기록하고</AppText>{' '}
-      <AppText scaleRole="body" style={styles.highlightText}>커스텀 인증샷</AppText>을 공유해요
+    <AppText variant="body" style={styles.cardDescription}>
+      이동 시간동안 읽은 <AppText variant="body" style={styles.highlightText}>책 쪽수를</AppText>{' '}
+      <AppText variant="body" style={styles.highlightText}>기록하고</AppText>{' '}
+      <AppText variant="body" style={styles.highlightText}>커스텀 인증샷</AppText>을 공유해요
     </AppText>
   );
 
   const Card4Title = () => (
-    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
+    <AppText weight="bold" variant="title" style={styles.cardTitle}>
       독서하기
     </AppText>
   );
 
   const Card4Description = () => (
-    <AppText scaleRole="body" style={styles.cardDescription}>
-      추천 쪽수대로 <AppText scaleRole="body" style={styles.highlightText}>독서를</AppText> 시작하고{' '}
-      <AppText scaleRole="body" style={styles.highlightText}>환승할 지점</AppText>과 도착지 한 정거장 전{' '}
-      <AppText scaleRole="body" style={styles.highlightText}>독서 정리 알림</AppText>을 제공해요
+    <AppText variant="body" style={styles.cardDescription}>
+      추천 쪽수대로 <AppText variant="body" style={styles.highlightText}>독서를</AppText> 시작하고{' '}
+      <AppText variant="body" style={styles.highlightText}>환승할 지점</AppText>과 도착지 한 정거장 전{' '}
+      <AppText variant="body" style={styles.highlightText}>독서 정리 알림</AppText>을 제공해요
     </AppText>
   );
 
@@ -120,7 +120,7 @@ export default function ReadingIntroScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <ExpoImage source={BUS_LOGO} style={styles.logoIcon} contentFit="contain" />
-          <AppText weight="bold" scaleRole="nav" style={styles.logoText}>
+          <AppText weight="bold" variant="nav" style={styles.logoText}>
             대독단
           </AppText>
         </View>
@@ -138,13 +138,13 @@ export default function ReadingIntroScreen() {
         {/* 상단 타이틀 영역 */}
         <View style={styles.titleSection}>
           <View style={styles.titleRow}>
-            <AppText weight="bold" scaleRole="title" style={styles.titleText}>
+            <AppText weight="bold" variant="title" style={styles.titleText}>
               대독단과{' '}
             </AppText>
-            <AppText weight="bold" scaleRole="title" style={styles.titleTextGreen}>
+            <AppText weight="bold" variant="title" style={styles.titleTextGreen}>
               독서
             </AppText>
-            <AppText weight="bold" scaleRole="title" style={styles.titleText}>
+            <AppText weight="bold" variant="title" style={styles.titleText}>
               하기
             </AppText>
           </View>
@@ -246,7 +246,7 @@ export default function ReadingIntroScreen() {
 
         {/* 하단 안내 문구 + 인디케이터 */}
         <View style={styles.bottomInfoSection}>
-          <AppText weight="bold" scaleRole="title" style={styles.bottomQuestion}>
+          <AppText weight="bold" variant="title" style={styles.bottomQuestion}>
             이제 독서를 시작해볼까요?
           </AppText>
           <View style={styles.dotsContainer}>
@@ -265,7 +265,7 @@ export default function ReadingIntroScreen() {
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel="시작하기">
-          <AppText weight="bold" scaleRole="button" style={styles.startButtonText}>
+          <AppText weight="bold" variant="button" style={styles.startButtonText}>
             시작하기
           </AppText>
         </TouchableOpacity>
@@ -287,7 +287,7 @@ export default function ReadingIntroScreen() {
             ]}
             resizeMode="contain"
           />
-          <AppText scaleRole="nav" style={[styles.navLabel, activeNav === '투데이' && styles.navLabelActive]}>
+          <AppText variant="nav" style={[styles.navLabel, activeNav === '투데이' && styles.navLabelActive]}>
             투데이
           </AppText>
         </TouchableOpacity>
@@ -305,7 +305,7 @@ export default function ReadingIntroScreen() {
             resizeMode="contain"
           />
           <AppText
-            scaleRole="nav"
+            variant="nav"
             style={[styles.navLabel, activeNav === '책읽기' && styles.navLabelActiveReading]}>
             책읽기
           </AppText>
@@ -324,7 +324,7 @@ export default function ReadingIntroScreen() {
             ]}
             resizeMode="contain"
           />
-          <AppText scaleRole="nav" style={[styles.navLabel, activeNav === '검색' && styles.navLabelActive]}>
+          <AppText variant="nav" style={[styles.navLabel, activeNav === '검색' && styles.navLabelActive]}>
             검색
           </AppText>
         </TouchableOpacity>
@@ -342,7 +342,7 @@ export default function ReadingIntroScreen() {
             ]}
             resizeMode="contain"
           />
-          <AppText scaleRole="nav" style={[styles.navLabel, activeNav === '내서재' && styles.navLabelActive]}>
+          <AppText variant="nav" style={[styles.navLabel, activeNav === '내서재' && styles.navLabelActive]}>
             내서재
           </AppText>
         </TouchableOpacity>
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
   header: {
-    height: 65,
+    minHeight: 65,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,

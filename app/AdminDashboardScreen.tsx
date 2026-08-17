@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AdminRouteGuard } from '@/src/components/admin/AdminRouteGuard';
 import { AppConfirmModal } from '@/src/components/ui/AppConfirmModal';
 import { logoutFromApp } from '@/src/features/auth/logout';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 const COLORS = {
   primary: '#2C8C55',
@@ -226,11 +227,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 17,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif-medium',
-      default: 'sans-serif',
-    }),
+    fontFamily: APP_FONTS.MEDIUM,
     color: COLORS.text,
   },
   headerSpacer: {

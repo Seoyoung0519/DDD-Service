@@ -2,7 +2,6 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,19 +14,12 @@ import {
   formatNotificationBadgeCount,
   useNotificationBadge,
 } from '@/src/hooks/useNotificationBadge';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 const BELL_ICON = require('../../../assets/images/drawer/bell.png');
 
 const COLORS = {
   PRIMARY: '#2C8C55',
-};
-
-const FONTS = {
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
 };
 
 type Props = {
@@ -78,8 +70,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
-    fontFamily: FONTS.BOLD,
-    fontWeight: '700',
+    fontFamily: APP_FONTS.BOLD,
     color: '#FFFFFF',
   },
 });

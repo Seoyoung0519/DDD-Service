@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import {
   getUserAvatarList,
@@ -26,10 +27,7 @@ const COLORS = {
   BORDER: '#E8E8E8',
 };
 
-const FONTS = {
-  BOLD: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 type UserAvatarPickerModalProps = {
   visible: boolean;

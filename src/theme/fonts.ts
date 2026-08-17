@@ -1,14 +1,16 @@
 /**
  * 대독단 타이포 정책
  * 1) 앱 전용 Pretendard로 통일 (시스템 Roboto/삼성 서체 사용 안 함)
- * 2) allowFontScaling은 유지하되 maxFontSizeMultiplier로 상한
+ * 2) allowFontScaling은 유지하되 maxFontSizeMultiplier로 상한 (최대 1.2~1.3)
  * 3) 레이아웃은 height 고정 대신 minHeight + padding 권장
+ *
+ * SemiBold 전용 파일이 없어 Medium으로 매핑합니다.
  */
 
 export const APP_FONTS = {
   REGULAR: 'Pretendard-Regular',
   MEDIUM: 'Pretendard-Medium',
-  SEMIBOLD: 'Pretendard-Medium',
+  SEMIBOLD: 'Pretendard-SemiBold',
   BOLD: 'Pretendard-Bold',
 } as const;
 
@@ -17,19 +19,19 @@ export const FONTS = APP_FONTS;
 
 /**
  * 역할별 시스템 글자 확대 상한.
- * 버튼/탭처럼 레이아웃이 빡센 곳은 낮게, 본문·독서 콘텐츠는 여유 있게.
+ * 버튼/탭처럼 레이아웃이 빡센 곳은 1.2, 제목·본문은 1.3.
  */
 export const FONT_SCALE = {
-  /** 버튼 CTA */
+  /** 버튼 CTA · 짧은 라벨 */
   button: 1.2,
   /** 하단 탭 / 상단 네비 */
   nav: 1.2,
   /** 카드·섹션 제목 */
   title: 1.3,
-  /** 일반 본문 (기본) */
-  body: 1.4,
-  /** 설명 / 독서 콘텐츠 */
-  content: 1.5,
+  /** 일반 본문 */
+  body: 1.3,
+  /** 긴 설명 / 독서 콘텐츠 (정책상 본문과 동일 상한) */
+  content: 1.3,
   /** Text/TextInput 전역 기본 상한 */
   default: 1.3,
 } as const;

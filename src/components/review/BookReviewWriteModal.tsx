@@ -15,13 +15,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
+import { AppTextInput } from '@/src/components/ui/AppTextInput';
 import { createReview, parseReadingPeriodDates } from '@/src/api/reviews';
 import type { CompletedBookItem } from '@/src/data/completedBooks';
 import { getCompletedBookById } from '@/src/data/completedBooks';
@@ -43,11 +44,7 @@ const COLORS = {
   BTN_INACTIVE_TEXT: '#9E9E9E',
 };
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'Roboto-Medium', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 const MODAL_SIDE = 16;
 
@@ -363,7 +360,7 @@ export function BookReviewWriteModal({
                       <Text style={styles.label}>
                         나의 감상 <Text style={styles.required}>*</Text>
                       </Text>
-                      <TextInput
+                      <AppTextInput
                         style={styles.inputThoughts}
                         placeholder="나의 감상 / 책을 읽고 느꼈던 생각이나 감정을 간단히 적어보세요. 책의 여운이 더 오래 남을 거예요."
                         placeholderTextColor={COLORS.PLACEHOLDER}

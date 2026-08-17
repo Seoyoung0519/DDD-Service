@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import { fetchFeed, type FeedItemOut } from '@/src/api/feed';
 import {
@@ -38,11 +39,7 @@ const COLORS = {
   BTN_BOOK_TEXT: '#777777',
 };
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'Roboto-Medium', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 function FeedCard({
   item,

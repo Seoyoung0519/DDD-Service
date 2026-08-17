@@ -11,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -30,29 +31,7 @@ const COLORS = {
   BOTTOM_BG: '#E5E5E5', // 더 진한 회색
 };
 
-// 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 export default function Onboarding_8() {
   const router = useRouter();
@@ -188,7 +167,8 @@ const styles = StyleSheet.create({
   },
   startButton: {
     width: '100%',
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: COLORS.BUTTON_GREEN,
     borderRadius: 8,
     alignItems: 'center',

@@ -4,6 +4,7 @@ import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   ActivityIndicator,
   FlatList,
   Image,
@@ -33,28 +34,7 @@ const COLORS = {
   BORDER: '#EEEEEE',
 };
 
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 function VideoRow({ item, onPress }: { item: BookPickVideoItem; onPress: () => void }) {
   return (
@@ -197,7 +177,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
   header: {
-    height: 56,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -296,7 +276,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   bottomNav: {
-    height: 100,
+    minHeight: 100,
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,

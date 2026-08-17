@@ -21,6 +21,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
 import { redactLogData } from '@/src/utils/appLog';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import { uploadReadingProof } from '@/src/api/proofUpload';
 import {
@@ -55,11 +56,7 @@ const COLORS = {
   BTN_OUTLINE: '#000000',
 };
 
-const FONTS = {
-  BOLD: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 type Step =
   | 'pages-input'
@@ -661,6 +658,7 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     paddingHorizontal: 20,
+    paddingTop: 22,
     paddingBottom: 24,
   },
   modalBodyProofComplete: {

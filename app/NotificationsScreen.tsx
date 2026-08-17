@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import {
   getNotificationInbox,
@@ -27,10 +28,7 @@ const COLORS = {
   BORDER: '#EAEAEA',
 };
 
-const FONTS = {
-  MEDIUM: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 function formatTime(iso: string): string {
   const d = new Date(iso);

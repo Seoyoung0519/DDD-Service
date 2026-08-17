@@ -1,8 +1,10 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const SPLASH_LOGO = require('../../../assets/images/brand/daedokdan-logo.png');
+import { AppText } from '@/src/components/ui/AppText';
+
+const SPLASH_LOGO = require('../../../assets/images/splash/app-icon.png');
 
 const COLORS = {
   background: '#E8F3ED',
@@ -20,7 +22,9 @@ export function AppLaunchSplash({ tagline = '출퇴근을 독서와 함께' }: A
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.content}>
         <Image source={SPLASH_LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="대독단" />
-        <Text style={styles.tagline}>{tagline}</Text>
+        <AppText variant="title" weight="bold" style={styles.tagline}>
+          {tagline}
+        </AppText>
       </View>
     </View>
   );
@@ -41,11 +45,14 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     marginBottom: 28,
+    // 아이콘 하단 바퀴가 잘리지 않도록 여유
+    overflow: 'visible',
   },
   tagline: {
     fontSize: 18,
-    fontWeight: '800',
     color: COLORS.tagline,
     letterSpacing: -0.2,
+    includeFontPadding: false,
+    textAlign: 'center',
   },
 });

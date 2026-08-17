@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import { type CommuteRouteJson, type CommuteRouteSegment } from '@/src/api/readingSession';
 import {
@@ -41,11 +42,7 @@ const COLORS = {
   BG: '#FFFFFF',
 };
 
-const FONTS = {
-  BOLD: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 export default function CommuteRouteResultScreen() {
   const router = useRouter();

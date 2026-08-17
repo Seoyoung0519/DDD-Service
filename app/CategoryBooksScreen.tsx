@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import {
   categoryBookDetailRouteId,
@@ -49,10 +50,7 @@ const COLORS = {
   BG: '#FFFFFF',
 };
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 function parseApiKey(raw: string | string[] | undefined): CategoryApiKey | null {
   const v = Array.isArray(raw) ? raw[0] : raw;

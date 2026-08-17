@@ -1,3 +1,4 @@
+import { APP_FONTS } from '@/src/theme/fonts';
 import {
   finishReadingTest,
   ONBOARDING_READING_TEST_STORAGE_KEY,
@@ -44,29 +45,7 @@ const COLORS = {
   ASTERISK: '#2196F3',
 };
 
-// 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 // 지문 내용
 const PASSAGE_TEXT = `인공지능은 사회 전반에 걸쳐 혁신을 가져오고 있다. 의료 분야에서는 진단 정확도를 높이고, 교육 분야에서는 개인 맞춤형 학습을 가능하게 하며, 산업에서는 자동화를 통해 효율성을 극대화하고 있다. 그러나 이러한 발전과 함께 일자리의 변화, 개인정보 보호, 알고리즘 편향성 등의 도전과제도 존재한다. 이러한 문제들에 대한 해결책을 찾기 위한 논의가 계속되고 있으며, 앞으로 인공지능과 인간이 조화롭게 공존할 수 있는 방안을 모색해야 한다.`;
@@ -489,7 +468,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   completeButton: {
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: COLORS.BUTTON_BG,
     borderRadius: 8,
     alignItems: 'center',

@@ -3,6 +3,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   ActivityIndicator,
   Alert,
   Dimensions,
@@ -57,28 +58,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 // 날짜 포맷팅 함수 (YYYY.MM.DD)
 const formatDate = (dateString: string): string => {
@@ -442,7 +422,7 @@ const styles = StyleSheet.create({
   },
   // 헤더 스타일
   header: {
-    height: 56,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -604,7 +584,7 @@ const styles = StyleSheet.create({
   // 하단 네비게이션 바
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,

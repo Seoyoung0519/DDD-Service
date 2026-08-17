@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   ActivityIndicator,
   Dimensions,
   Image,
@@ -48,11 +49,7 @@ const COLORS = {
   BORDER: '#EAEAEA',
 };
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'Roboto-Medium', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 const GRID_H_PAD = 16;
 const COLUMN_GAP = 14;
@@ -357,7 +354,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,

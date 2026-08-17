@@ -5,6 +5,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { fetchCurrentUser } from '@/src/services/auth/authService';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 const COLORS = {
   primary: '#2C8C55',
@@ -185,11 +186,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     color: COLORS.text,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif-medium',
-      default: 'sans-serif',
-    }),
+    fontFamily: APP_FONTS.MEDIUM,
   },
   headerSpacer: { width: 28 },
   content: { padding: 20, paddingBottom: 36 },

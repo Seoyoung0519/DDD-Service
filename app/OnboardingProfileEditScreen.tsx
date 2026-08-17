@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 const COLORS = {
   PRIMARY: '#2C8C55',
@@ -13,11 +14,7 @@ const COLORS = {
   PAGE_BG: '#F7F7F7',
 };
 
-const FONTS = {
-  BOLD: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 const MENU_ITEMS = [
   {

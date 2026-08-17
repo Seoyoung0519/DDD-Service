@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import type {
   RouteProgressHeadline,
@@ -19,11 +20,7 @@ const COLORS = {
   TRACK: '#E8E8E8',
 };
 
-const FONTS = {
-  BOLD: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 const MIN_ICON_WIDTH_PCT = 14;
 const BAR_HEIGHT = 28;

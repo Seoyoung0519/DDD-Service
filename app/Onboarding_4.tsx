@@ -1,4 +1,5 @@
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   submitCommuteProfile,
   fetchOnboardingState,
   type CommuteDay,
@@ -19,7 +20,6 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -54,28 +54,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 type DayOfWeek = '월' | '화' | '수' | '목' | '금' | '토' | '일';
 
@@ -806,7 +785,8 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 1,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: COLORS.BUTTON_GREEN,
     borderRadius: 24,
     alignItems: 'center',

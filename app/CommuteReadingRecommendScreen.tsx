@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import {
   recommendCommuteReading,
@@ -47,11 +48,7 @@ const COLORS = {
   FOOTER_HINT: '#9E9E9E',
 };
 
-const FONTS = {
-  BOLD: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 export default function CommuteReadingRecommendScreen() {
   const router = useRouter();

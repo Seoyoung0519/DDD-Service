@@ -7,7 +7,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +23,7 @@ import {
   setCommutePlaceSelection,
   type CommutePlacePickField,
 } from '@/src/state/commutePlaceSelection';
+import { APP_FONTS } from '@/src/theme/fonts';
 import type { CommutePlace } from '@/src/types/commute';
 
 const PRIMARY = '#2C8C55';
@@ -141,13 +141,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
+    flexShrink: 1,
     textAlign: 'center',
     fontSize: 17,
-    fontWeight: '700',
     color: '#222',
-    ...Platform.select({
-      android: { fontFamily: 'sans-serif-medium' },
-    }),
+    fontFamily: APP_FONTS.BOLD,
   },
   headerRight: {
     width: 36,

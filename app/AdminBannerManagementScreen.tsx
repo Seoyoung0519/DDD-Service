@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   ActivityIndicator,
   Alert,
   Platform,
@@ -256,11 +257,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     color: COLORS.text,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif-medium',
-      default: 'sans-serif',
-    }),
+    fontFamily: APP_FONTS.MEDIUM,
   },
   addHeaderButton: {
     width: 28,

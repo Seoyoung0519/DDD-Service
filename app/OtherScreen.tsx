@@ -3,6 +3,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   Platform,
   StyleSheet,
   Text,
@@ -98,21 +99,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111111',
     marginBottom: 10,
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif-medium',
-      default: 'sans-serif',
-    }),
+    fontFamily: APP_FONTS.MEDIUM,
   },
   sectionDescription: {
     fontSize: 14,
     lineHeight: 22,
     color: '#666666',
-    fontFamily: Platform.select({
-      ios: 'System',
-      android: 'sans-serif',
-      default: 'sans-serif',
-    }),
+    fontFamily: APP_FONTS.REGULAR,
   },
   contentMain: {
     flex: 1,

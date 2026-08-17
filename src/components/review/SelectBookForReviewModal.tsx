@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import type { CompletedBookOut } from '@/src/api/library';
 import {
@@ -36,11 +37,7 @@ const COLORS = {
   BTN_INACTIVE_TEXT: '#9E9E9E',
 };
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'Roboto-Medium', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 const MODAL_SIDE = 16;
 const GRID_INNER_PAD = 16;

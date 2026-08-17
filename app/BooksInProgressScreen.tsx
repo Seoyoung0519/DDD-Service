@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   ActivityIndicator,
   Image,
   InteractionManager,
@@ -41,11 +42,7 @@ const COLORS = {
   PROGRESS_FILL: '#2C8C55',
 };
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'Roboto-Medium', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 function formatProgressPct(p: number): string {
   const x = Math.min(100, Math.max(0, p));
@@ -419,7 +416,7 @@ const styles = StyleSheet.create({
 
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.PAGE_BG,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,

@@ -2,6 +2,7 @@ import { submitReadingProfile, fetchOnboardingState } from '@/src/services/onboa
 import { saveReadingProfileForEdit } from '@/src/services/onboarding/onboardingProfileEditSave';
 import { loadOnboardingProfileForEdit, updateUserProfile } from '@/src/api/userProfile';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   isOnboardingEditMode,
   mapReadingSpeedToUi,
   mapUiSpeedToApi,
@@ -23,7 +24,6 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -64,28 +64,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 const GENRES = [
   '시',
@@ -722,7 +701,8 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 1,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: COLORS.BUTTON_GREEN,
     borderRadius: 24,
     alignItems: 'center',

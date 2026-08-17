@@ -2,12 +2,12 @@ import React from 'react';
 import {
   ActivityIndicator,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
+
+import { AppText } from '@/src/components/ui/AppText';
 
 const COLORS = {
   TEXT: '#222222',
@@ -15,11 +15,6 @@ const COLORS = {
   CANCEL_BG: '#E8E8E8',
   CONFIRM_BG: '#2C8C55',
   WHITE: '#FFFFFF',
-};
-
-const FONTS = {
-  BOLD: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'sans-serif' }),
-  REGULAR: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }),
 };
 
 type Props = {
@@ -47,15 +42,21 @@ export function AppConfirmModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.body}>{message}</Text>
+          <AppText variant="title" style={styles.title}>
+            {title}
+          </AppText>
+          <AppText variant="body" style={styles.body}>
+            {message}
+          </AppText>
           <View style={styles.btnRow}>
             <Pressable
               style={styles.cancelBtn}
               onPress={onCancel}
               disabled={confirmLoading}
               accessibilityRole="button">
-              <Text style={styles.cancelText}>{cancelLabel}</Text>
+              <AppText variant="button" style={styles.cancelText}>
+                {cancelLabel}
+              </AppText>
             </Pressable>
             <Pressable
               style={[styles.confirmBtn, confirmLoading && styles.btnDisabled]}
@@ -65,7 +66,9 @@ export function AppConfirmModal({
               {confirmLoading ? (
                 <ActivityIndicator color={COLORS.WHITE} />
               ) : (
-                <Text style={styles.confirmText}>{confirmLabel}</Text>
+                <AppText variant="button" weight="bold" style={styles.confirmText}>
+                  {confirmLabel}
+                </AppText>
               )}
             </Pressable>
           </View>
@@ -95,14 +98,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     color: COLORS.TEXT,
-    fontFamily: FONTS.BOLD,
     marginBottom: 12,
     textAlign: 'center',
   },
   body: {
     fontSize: 14,
     color: COLORS.SUBTITLE,
-    fontFamily: FONTS.REGULAR,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 22,
@@ -113,7 +114,8 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     flex: 1,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     borderRadius: 14,
     backgroundColor: COLORS.CANCEL_BG,
     alignItems: 'center',
@@ -122,11 +124,11 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 15,
     color: COLORS.TEXT,
-    fontFamily: FONTS.REGULAR,
   },
   confirmBtn: {
     flex: 1,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     borderRadius: 14,
     backgroundColor: COLORS.CONFIRM_BG,
     alignItems: 'center',
@@ -135,7 +137,6 @@ const styles = StyleSheet.create({
   confirmText: {
     fontSize: 15,
     color: COLORS.WHITE,
-    fontFamily: FONTS.BOLD,
   },
   btnDisabled: {
     opacity: 0.7,

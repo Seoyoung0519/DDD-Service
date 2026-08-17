@@ -3,6 +3,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   Dimensions,
   Image,
   Platform,
@@ -45,28 +46,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리 (Pretendard 대신 시스템 폰트 사용)
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 // 책 데이터 타입
 interface Book {
@@ -400,7 +380,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
   header: {
-    height: 65,
+    minHeight: 65,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -678,7 +658,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,

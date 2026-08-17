@@ -1,15 +1,13 @@
 import React from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import {
   PAGE_RANGE_OPTIONS,
   type ReadingStaminaRangeKey,
 } from '@/src/components/reading-stamina/types';
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 type Props = {
   selectedRange: ReadingStaminaRangeKey;
@@ -77,7 +75,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#222222',
   },
   pillText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.REGULAR,
     color: '#555555',
   },
@@ -102,7 +100,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   outlineText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.REGULAR,
     color: '#888888',
   },

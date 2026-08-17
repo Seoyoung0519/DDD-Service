@@ -9,8 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -19,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LoginHeaderPattern } from '@/src/components/login/LoginWaveDivider';
 import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
+import { AppText } from '@/src/components/ui/AppText';
+import { AppTextInput } from '@/src/components/ui/AppTextInput';
 import { SocialLoginCircles } from '@/src/components/login/SocialLoginCircles';
 import {
   GoogleLoginResult,
@@ -36,6 +36,7 @@ import {
 import { isOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
 import { resolveAgreementsGateRoute } from '@/src/services/settings/agreementGate';
 import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
+import { APP_FONTS } from '@/src/theme/fonts';
 import { syncExtendedApiSession } from '@/src/utils/extendedApiAuth';
 
 const APP_LOGO = require('../assets/images/brand/daedokdan-logo.png');
@@ -248,11 +249,17 @@ export default function LoginScreen() {
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.screenTitle}>Login</Text>
-          <Text style={styles.screenSub}>이메일 또는 소셜 계정으로 시작해 보세요</Text>
+          <AppText variant="title" weight="bold" style={styles.screenTitle}>
+            Login
+          </AppText>
+          <AppText variant="body" style={styles.screenSub}>
+            이메일 또는 소셜 계정으로 시작해 보세요
+          </AppText>
 
-          <Text style={styles.fieldLabel}>이메일</Text>
-          <TextInput
+          <AppText variant="label" style={styles.fieldLabel}>
+            이메일
+          </AppText>
+          <AppTextInput
             placeholder="example@email.com"
             placeholderTextColor={COLORS.muted}
             style={styles.input}
@@ -269,21 +276,24 @@ export default function LoginScreen() {
           {isCodeSent ? (
             <>
               <View style={styles.codeLabelRow}>
-                <Text style={styles.fieldLabel}>인증 코드</Text>
+                <AppText variant="label" style={styles.fieldLabel}>
+                  인증 코드
+                </AppText>
                 <TouchableOpacity
                   disabled={isLoading || resendSeconds > 0}
                   onPress={() => void handleSendCode(true)}
                   hitSlop={8}>
-                  <Text
+                  <AppText
+                    variant="label"
                     style={[
                       styles.resendText,
                       (isLoading || resendSeconds > 0) && styles.resendTextDisabled,
                     ]}>
                     {resendSeconds > 0 ? `재발송 ${resendSeconds}초` : '인증 코드 재발송'}
-                  </Text>
+                  </AppText>
                 </TouchableOpacity>
               </View>
-              <TextInput
+              <AppTextInput
                 placeholder="6자리 숫자"
                 placeholderTextColor={COLORS.muted}
                 style={styles.input}
@@ -297,10 +307,13 @@ export default function LoginScreen() {
                 }
               />
 
-              <Text style={[styles.fieldLabel, styles.nameLabel]}>
-                이름 <Text style={styles.optionalText}>(처음 가입하는 경우)</Text>
-              </Text>
-              <TextInput
+              <AppText variant="label" style={[styles.fieldLabel, styles.nameLabel]}>
+                이름{' '}
+                <AppText variant="caption" style={styles.optionalText}>
+                  (처음 가입하는 경우)
+                </AppText>
+              </AppText>
+              <AppTextInput
                 placeholder="이름을 입력해 주세요"
                 placeholderTextColor={COLORS.muted}
                 style={styles.input}
@@ -318,14 +331,16 @@ export default function LoginScreen() {
             activeOpacity={0.88}
             disabled={isLoading}
             onPress={handleEmailContinue}>
-            <Text style={styles.primaryButtonText}>
+            <AppText variant="button" weight="semibold" style={styles.primaryButtonText}>
               {isCodeSent ? '이메일로 로그인' : '인증 코드 받기'}
-            </Text>
+            </AppText>
           </TouchableOpacity>
 
           <View style={styles.orRow}>
             <View style={styles.orLine} />
-            <Text style={styles.orText}>다른 방법으로 로그인</Text>
+            <AppText variant="caption" style={styles.orText}>
+              다른 방법으로 로그인
+            </AppText>
             <View style={styles.orLine} />
           </View>
 
@@ -411,7 +426,8 @@ const styles = StyleSheet.create({
   nameLabel: { marginTop: 16 },
   optionalText: { fontSize: 11, fontWeight: '400', color: '#AAAAAA' },
   input: {
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 14,
     borderRadius: 14,
     backgroundColor: COLORS.inputBg,
     paddingHorizontal: 18,
@@ -419,10 +435,12 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     borderWidth: 1,
     borderColor: COLORS.inputBorder,
+    fontFamily: APP_FONTS.REGULAR,
   },
   primaryButton: {
     marginTop: 22,
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 14,
     borderRadius: 14,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
@@ -431,7 +449,6 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontWeight: '600',
     letterSpacing: 0.3,
   },
   buttonDisabled: { opacity: 0.55 },

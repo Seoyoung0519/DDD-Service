@@ -4,6 +4,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   ActivityIndicator,
   Dimensions,
   Image,
@@ -50,23 +51,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 // 자동완성 추천어 인터페이스
 interface SuggestionItem {
@@ -418,7 +403,7 @@ const styles = StyleSheet.create({
   },
   // 헤더 스타일
   header: {
-    height: 65,
+    minHeight: 65,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -636,7 +621,7 @@ const styles = StyleSheet.create({
   // 하단 네비게이션 바
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,

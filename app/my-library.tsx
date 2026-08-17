@@ -1,11 +1,12 @@
 /**
- * 내서재 — 서재 요약·캘린더·통계 + 프로필 조회 API 연동
+ * ??? ? ?? ????????? + ??? ?? API ??
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   ActivityIndicator,
   Dimensions,
   Image,
@@ -71,13 +72,9 @@ const COLORS = {
   BORDER: '#EAEAEA',
 };
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  MEDIUM: Platform.select({ ios: 'System', android: 'Roboto-Medium', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
-const WEEK_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+const WEEK_LABELS = ['?', '?', '?', '?', '?', '?', '?'];
 
 function buildCalendarGrid(year: number, monthIndex: number): (number | null)[] {
   const first = new Date(year, monthIndex, 1);
@@ -106,16 +103,16 @@ export default function MyLibraryScreen() {
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [completedBooks, setCompletedBooks] = useState<CompletedBookOut[]>([]);
   const [wishlistBooks, setWishlistBooks] = useState<WishBookOut[]>([]);
-  /** GET /library/calendar — 현재 월 미니 그리드용 */
+  /** GET /library/calendar ? ?? ? ?? ???? */
   const [calendarByDay, setCalendarByDay] = useState<Record<number, CalendarDayOut>>({});
-  /** 캘린더 API 실패 시 빈 목록과 구분 (실패면 ‘읽은 책 없음’ 문구 비표시) */
+  /** ??? API ?? ? ? ??? ?? (??? ??? ? ??? ?? ???) */
   const [calendarLoadFailed, setCalendarLoadFailed] = useState(false);
-  /** GET /library/stats → StatsCard */
+  /** GET /library/stats ? StatsCard */
   const [readingStats, setReadingStats] = useState<ReadingStatsData>(EMPTY_READING_STATS);
-  /** GET /user/profile — 상단 프로필 영역 */
+  /** GET /user/profile ? ?? ??? ?? */
   const [userProfile, setUserProfile] = useState<UserProfileResponse | null>(null);
 
-  /** 요약 + 완독 + 찜 + 캘린더 + 대독 통계 + 프로필 병렬 */
+  /** ?? + ?? + ? + ??? + ?? ?? + ??? ?? */
   const loadLibraryPageData = useCallback(async () => {
     setSummaryLoading(true);
     const now = new Date();
@@ -133,19 +130,19 @@ export default function MyLibraryScreen() {
     if (sumRes.status === 'fulfilled') {
       setLibrarySummary(sumRes.value);
     } else {
-      console.warn('[MyLibraryScreen] 내 서재 요약 조회 실패:', sumRes.reason);
+      console.warn('[MyLibraryScreen] ? ?? ?? ?? ??:', sumRes.reason);
       setLibrarySummary(EMPTY_SUMMARY);
     }
     if (compRes.status === 'fulfilled') {
       setCompletedBooks(compRes.value);
     } else {
-      console.warn('[MyLibraryScreen] 완독 도서 목록 조회 실패:', compRes.reason);
+      console.warn('[MyLibraryScreen] ?? ?? ?? ?? ??:', compRes.reason);
       setCompletedBooks([]);
     }
     if (wishRes.status === 'fulfilled') {
       setWishlistBooks(wishRes.value);
     } else {
-      console.warn('[MyLibraryScreen] 찜한 도서 목록 조회 실패:', wishRes.reason);
+      console.warn('[MyLibraryScreen] ?? ?? ?? ?? ??:', wishRes.reason);
       setWishlistBooks([]);
     }
     if (calRes.status === 'fulfilled') {
@@ -153,7 +150,7 @@ export default function MyLibraryScreen() {
       setCalendarLoadFailed(false);
     } else {
       if (__DEV__) {
-        console.warn('[MyLibraryScreen] 독서 캘린더 조회 실패:', calRes.reason);
+        console.warn('[MyLibraryScreen] ?? ??? ?? ??:', calRes.reason);
       }
       setCalendarByDay({});
       setCalendarLoadFailed(true);
@@ -162,7 +159,7 @@ export default function MyLibraryScreen() {
       setReadingStats(readingStatsOutToCardData(statsRes.value));
     } else {
       if (__DEV__) {
-        console.warn('[MyLibraryScreen] 독서 통계 조회 실패:', statsRes.reason);
+        console.warn('[MyLibraryScreen] ?? ?? ?? ??:', statsRes.reason);
       }
       setReadingStats(EMPTY_READING_STATS);
     }
@@ -170,7 +167,7 @@ export default function MyLibraryScreen() {
       setUserProfile(profileRes.value);
     } else {
       if (__DEV__) {
-        console.warn('[MyLibraryScreen] 프로필 조회 실패:', profileRes.reason);
+        console.warn('[MyLibraryScreen] ??? ?? ??:', profileRes.reason);
       }
       setUserProfile(null);
     }
@@ -193,7 +190,7 @@ export default function MyLibraryScreen() {
   const now = new Date();
   const calYear = now.getFullYear();
   const calMonthIndex = now.getMonth();
-  const monthLabel = `${calMonthIndex + 1}월`;
+  const monthLabel = `${calMonthIndex + 1}?`;
 
   const calendarCells = useMemo(
     () => buildCalendarGrid(calYear, calMonthIndex),
@@ -217,9 +214,9 @@ export default function MyLibraryScreen() {
     return rows;
   }, [calendarCells]);
 
-  const profileNickname = userProfile?.nickname?.trim() || '닉네임 없음';
+  const profileNickname = userProfile?.nickname?.trim() || '??? ??';
   const profileJoinLine = formatOnboardedAtLabel(userProfile?.onboardedAt);
-  // 선택한 캐릭터(avatarId) 우선 — SNS avatarUrl보다 우선 표시
+  // ??? ???(avatarId) ?? ? SNS avatarUrl?? ?? ??
   const profileAvatarSource = useMemo(() => {
     if (isUserAvatarId(userProfile?.avatarId)) {
       return getUserAvatarSource(userProfile.avatarId);
@@ -232,11 +229,11 @@ export default function MyLibraryScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* 상단 헤더 (투데이/검색과 동일 패턴) */}
+      {/* ?? ?? (???/??? ?? ??) */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <ExpoImage source={BUS_LOGO} style={styles.logoIcon} contentFit="contain" />
-          <Text style={styles.logoText}>대독단</Text>
+          <Text style={styles.logoText}>???</Text>
         </View>
         <View style={styles.headerRight}>
           <ProfileHeaderButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
@@ -249,9 +246,9 @@ export default function MyLibraryScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>내서재</Text>
+        <Text style={styles.pageTitle}>???</Text>
 
-        {/* 프로필 — GET /user/profile */}
+        {/* ??? ? GET /user/profile */}
         <View style={styles.profileRow}>
           <View style={styles.avatarWrap}>
             <Image source={profileAvatarSource} style={styles.avatarImg} resizeMode="cover" />
@@ -262,27 +259,27 @@ export default function MyLibraryScreen() {
           </View>
         </View>
 
-        {/* 요약 통계 — GET /library/summary */}
+        {/* ?? ?? ? GET /library/summary */}
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>
-              {summaryLoading ? '—' : librarySummary.reviewCount}
+              {summaryLoading ? '?' : librarySummary.reviewCount}
             </Text>
-            <Text style={styles.summaryLabel}>독서 리뷰</Text>
+            <Text style={styles.summaryLabel}>?? ??</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>
-              {summaryLoading ? '—' : librarySummary.completedCount}
+              {summaryLoading ? '?' : librarySummary.completedCount}
             </Text>
-            <Text style={styles.summaryLabel}>완독 도서 수</Text>
+            <Text style={styles.summaryLabel}>?? ?? ?</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>
-              {summaryLoading ? '—' : librarySummary.inProgressCount}
+              {summaryLoading ? '?' : librarySummary.inProgressCount}
             </Text>
-            <Text style={styles.summaryLabel}>진행 중 도서</Text>
+            <Text style={styles.summaryLabel}>?? ? ??</Text>
           </View>
         </View>
 
@@ -291,34 +288,34 @@ export default function MyLibraryScreen() {
             style={styles.btnPrimary}
             activeOpacity={0.85}
             onPress={() => router.push('/MyReviewsScreen')}>
-            <Text style={styles.btnPrimaryText}>내가 쓴 리뷰 보러가기</Text>
+            <Text style={styles.btnPrimaryText}>?? ? ?? ????</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.btnOutline}
             activeOpacity={0.85}
             onPress={() => router.push('/BooksInProgressScreen')}>
-            <Text style={styles.btnOutlineText}>진행 중인 도서 확인하기</Text>
+            <Text style={styles.btnOutlineText}>?? ?? ?? ????</Text>
           </TouchableOpacity>
         </View>
 
-        {/* 찜한 도서 */}
+        {/* ?? ?? */}
         <View style={[styles.section, styles.sectionWishlistAfterProfile]}>
           <TouchableOpacity
             style={styles.sectionHeader}
             activeOpacity={0.7}
             onPress={() => router.push('/WishlistBooksScreen')}>
-            <Text style={styles.sectionTitle}>찜한 도서</Text>
+            <Text style={styles.sectionTitle}>?? ??</Text>
             <Ionicons name="chevron-forward" size={22} color="#B0B0B0" />
           </TouchableOpacity>
           <Text style={styles.sectionDesc}>
-            읽을 예정이거나 궁금한 책을 이전에 담아두었다면 여기서 확인해볼 수 있어요
+            ?? ????? ??? ?? ??? ?????? ??? ???? ? ???
           </Text>
           {summaryLoading && wishlistBooks.length === 0 ? (
             <View style={styles.wishlistLoadingRow}>
               <ActivityIndicator size="small" color={COLORS.PRIMARY} />
             </View>
           ) : wishlistBooks.length === 0 ? (
-            <Text style={styles.wishlistEmptyText}>찜한 도서가 없습니다.</Text>
+            <Text style={styles.wishlistEmptyText}>?? ??? ????.</Text>
           ) : (
             <ScrollView
               horizontal
@@ -347,7 +344,7 @@ export default function MyLibraryScreen() {
                     <View style={[styles.bookCover, styles.wishlistCoverPlaceholder]} />
                   )}
                   <Text style={styles.bookTitle} numberOfLines={2}>
-                    {b.bookTitle?.trim() || '제목 없음'}
+                    {b.bookTitle?.trim() || '?? ??'}
                   </Text>
                   <Text style={styles.bookAuthor} numberOfLines={1}>
                     {b.bookAuthor?.trim() || ' '}
@@ -358,13 +355,13 @@ export default function MyLibraryScreen() {
           )}
         </View>
 
-        {/* 완독 도서 — CTA 카드 + 표지 상단 정렬 가로 스크롤 */}
+        {/* ?? ?? ? CTA ?? + ?? ?? ?? ?? ??? */}
         <View style={[styles.section, styles.sectionCompletedAfterWishlist, styles.sectionFlushBottom]}>
           <TouchableOpacity
             style={styles.sectionHeader}
             activeOpacity={0.7}
             onPress={() => router.push('/CompletedBooksScreen')}>
-            <Text style={styles.sectionTitle}>완독 도서</Text>
+            <Text style={styles.sectionTitle}>?? ??</Text>
             <Ionicons name="chevron-forward" size={22} color="#B0B0B0" />
           </TouchableOpacity>
           <ScrollView
@@ -378,9 +375,9 @@ export default function MyLibraryScreen() {
               activeOpacity={0.92}
               onPress={() => setReviewSelectModalVisible(true)}>
               <View style={styles.completedHeroLeft}>
-                <Text style={styles.completedHeroKicker}>기록의 기쁨</Text>
+                <Text style={styles.completedHeroKicker}>??? ??</Text>
                 <Text style={styles.completedHeroTitle}>
-                  독서 리뷰{'\n'}작성하기
+                  ?? ??{'\n'}????
                 </Text>
                 <View style={styles.completedHeroChevronBtn}>
                   <Ionicons name="chevron-forward" size={17} color="#9A9A9A" />
@@ -420,7 +417,7 @@ export default function MyLibraryScreen() {
                   <View style={[styles.completedBookCover, styles.completedBookCoverPlaceholder]} />
                 )}
                 <Text style={styles.completedBookTitle} numberOfLines={2}>
-                  {b.bookTitle?.trim() || '제목 없음'}
+                  {b.bookTitle?.trim() || '?? ??'}
                 </Text>
                 <Text style={styles.completedBookAuthor} numberOfLines={2}>
                   {b.bookAuthor?.trim() || ' '}
@@ -430,13 +427,13 @@ export default function MyLibraryScreen() {
           </ScrollView>
         </View>
 
-        {/* 세로 ScrollView 안 가로 ScrollView 때문에 margin 이 안 먹는 기기 대비: 고정 높이 공백 */}
+        {/* ?? ScrollView ? ?? ScrollView ??? margin ? ? ?? ?? ??: ?? ?? ?? */}
         <View style={styles.sectionVerticalSpacer30} />
 
-        {/* 캘린더 */}
+        {/* ??? */}
         <View style={[styles.section, styles.sectionFlushBottom]}>
           <View style={[styles.sectionHeader, styles.calendarSectionHeader]}>
-            <Text style={styles.sectionTitle}>{monthLabel} 캘린더</Text>
+            <Text style={styles.sectionTitle}>{monthLabel} ???</Text>
             <Pressable
               onPress={() => {
                 setCalendarViewAllPressed(true);
@@ -449,7 +446,7 @@ export default function MyLibraryScreen() {
                   styles.linkMuted,
                   calendarViewAllPressed && styles.linkMutedActive,
                 ]}>
-                전체보기
+                ????
               </Text>
             </Pressable>
           </View>
@@ -457,8 +454,8 @@ export default function MyLibraryScreen() {
           !calendarLoadFailed &&
           !calendarIndexedHasAnyReading(calendarByDay) ? (
             <Text style={styles.calendarEmptyText}>
-              아직 읽은 책이 없습니다.{'\n'}
-              책읽기 탭에서 독서를 시작해보세요!
+              ?? ?? ?? ????.{'\n'}
+              ??? ??? ??? ??????!
             </Text>
           ) : null}
           <View style={styles.weekRow}>
@@ -501,12 +498,12 @@ export default function MyLibraryScreen() {
 
         <View style={styles.sectionVerticalSpacerCalendarToStats} />
 
-        {/* 대독 통계 — 제목·설명은 일반 섹션 간격, 카드만 statsCardWrap 으로 아래로 */}
+        {/* ?? ?? ? ?????? ?? ?? ??, ??? statsCardWrap ?? ??? */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, styles.sectionTitlePlain]}>대독 통계</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitlePlain]}>?? ??</Text>
           <Text style={[styles.sectionDesc, styles.statsSectionDesc]}>
-            한 달동안 몇권의 책을 완독했는지 연속으로 대독단과 함께{'\n'}
-            독서한 최대 일수를 확인해볼 수 있어요
+            ? ??? ??? ?? ????? ???? ???? ??{'\n'}
+            ??? ?? ??? ???? ? ???
           </Text>
           <View style={styles.statsCardWrap}>
             <StatsCard data={readingStats} />
@@ -514,21 +511,21 @@ export default function MyLibraryScreen() {
         </View>
       </ScrollView>
 
-      {/* 하단 네비게이션 */}
+      {/* ?? ????? */}
       <AppBottomNavBar>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/Drawer_1')}>
           <Image source={TODAY_ICON} style={styles.navIcon} resizeMode="contain" />
-          <Text style={styles.navLabel}>투데이</Text>
+          <Text style={styles.navLabel}>???</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => router.push('/ReadingIntroScreen')}>
           <Image source={READING_ICON} style={styles.navIcon} resizeMode="contain" />
-          <Text style={styles.navLabel}>책읽기</Text>
+          <Text style={styles.navLabel}>???</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push('/SearchScreen_1')}>
           <Image source={SEARCH_ICON} style={styles.navIcon} resizeMode="contain" />
-          <Text style={styles.navLabel}>검색</Text>
+          <Text style={styles.navLabel}>??</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} disabled>
           <Image
@@ -536,7 +533,7 @@ export default function MyLibraryScreen() {
             style={[styles.navIcon, { tintColor: COLORS.PRIMARY }]}
             resizeMode="contain"
           />
-          <Text style={[styles.navLabel, styles.navLabelActive]}>내서재</Text>
+          <Text style={[styles.navLabel, styles.navLabelActive]}>???</Text>
         </TouchableOpacity>
       </AppBottomNavBar>
 
@@ -576,7 +573,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
   header: {
-    height: 65,
+    minHeight: 65,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -676,7 +673,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginBottom: 8,
   },
-  summaryItem: { flex: 1, alignItems: 'center' },
+  summaryItem: { flex: 1, minWidth: 0, alignItems: 'center', paddingHorizontal: 4 },
   summaryNum: {
     fontSize: 22,
     fontFamily: FONTS.BOLD,
@@ -711,9 +708,9 @@ const styles = StyleSheet.create({
   btnPrimaryText: {
     fontSize: 13,
     fontFamily: FONTS.MEDIUM,
-    fontWeight: '600',
     color: '#FFFFFF',
     textAlign: 'center',
+    flexShrink: 1,
   },
   btnOutline: {
     flex: 1,
@@ -728,37 +725,37 @@ const styles = StyleSheet.create({
   btnOutlineText: {
     fontSize: 13,
     fontFamily: FONTS.MEDIUM,
-    fontWeight: '600',
     color: COLORS.TEXT,
     textAlign: 'center',
+    flexShrink: 1,
   },
-  /** 찜한 도서 · 완독 · 캘린더 · 대독 통계 — 섹션 간 여백 */
+  /** ?? ?? ? ?? ? ??? ? ?? ?? ? ?? ? ?? */
   section: {
     marginBottom: 40,
   },
-  /** 프로필(버튼) ↔ 찜한 도서 */
+  /** ???(??) ? ?? ?? */
   sectionWishlistAfterProfile: {
     marginTop: 40,
   },
-  /** 찜한 도서 ↔ 완독 도서 사이 추가 간격 */
+  /** ?? ?? ? ?? ?? ?? ?? ?? */
   sectionCompletedAfterWishlist: {
     marginTop: 18,
   },
-  /** 완독·캘린더: 아래 스페이서로 간격을 줄 때 본문과 겹치지 않도록 marginBottom 0 */
+  /** ??????: ?? ????? ??? ? ? ??? ??? ??? marginBottom 0 */
   sectionFlushBottom: {
     marginBottom: 32,
   },
-  /** 완독 ↔ 캘린더 고정 간격 */
+  /** ?? ? ??? ?? ?? */
   sectionVerticalSpacer30: {
     height: 30,
     flexShrink: 0,
   },
-  /** 캘린더 ↔ 대독 통계 제목 */
+  /** ??? ? ?? ?? ?? */
   sectionVerticalSpacerCalendarToStats: {
     height: 0,
     flexShrink: 0,
   },
-  /** 통계 카드만 아래로 (제목·설명과 겹침 방지) */
+  /** ?? ??? ??? (?????? ?? ??) */
   statsCardWrap: {
     marginTop: 0,
   },
@@ -772,7 +769,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  /** N월 캘린더 타이틀 ↔ 요일·그리드 사이 (기본 8 + 12pt) */
+  /** N? ??? ??? ? ?????? ?? (?? 8 + 12pt) */
   calendarSectionHeader: {
     marginBottom: 24,
   },
@@ -802,7 +799,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     fontFamily: FONTS.REGULAR,
   },
-  /** 대독 통계 설명 — PNG용 음수 마진 제거, 제목·설명이 카드에 가려지지 않도록 */
+  /** ?? ?? ?? ? PNG? ?? ?? ??, ?????? ??? ???? ??? */
   statsSectionDesc: {
     marginBottom: 14,
   },
@@ -811,7 +808,7 @@ const styles = StyleSheet.create({
     gap: 12,
     flexDirection: 'row',
   },
-  /** 완독: CTA·표지 상단(top) 기준 정렬 */
+  /** ??: CTA??? ??(top) ?? ?? */
   completedScrollContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -855,7 +852,7 @@ const styles = StyleSheet.create({
   wishlistCoverPlaceholder: {
     backgroundColor: '#D8D8D8',
   },
-  /** 완독 CTA — 연회색 둥근 카드, 좌측 카피 + 우하단 독서기록 일러스트 */
+  /** ?? CTA ? ??? ?? ??, ?? ?? + ??? ???? ???? */
   completedHeroCard: {
     width: Math.min(Math.round(SCREEN_W * 0.74), 180),
     minHeight: 176,
@@ -921,7 +918,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
   },
-  /** 완독 목록 도서 (표지·제목 왼쪽 정렬, 표지 모서리 CTA와 톤 맞춤) */
+  /** ?? ?? ?? (????? ?? ??, ?? ??? CTA? ? ??) */
   completedBookColumn: {
     width: 82,
   },
@@ -932,7 +929,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: '#E8E8E8',
   },
-  /** 완독 API에 표지 URL 없을 때 */
+  /** ?? API? ?? URL ?? ? */
   completedBookCoverPlaceholder: {
     backgroundColor: '#D8D8D8',
   },
@@ -1006,14 +1003,14 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: 'transparent',
   },
-  /** 썸네일 URL 없이 독서 기록만 있는 날 */
+  /** ??? URL ?? ?? ??? ?? ? */
   dayThumbPlaceholderMuted: {
     backgroundColor: '#E8E8E8',
   },
-  /** Drawer_1 / SearchScreen_1 과 동일한 하단 탭 바 */
+  /** Drawer_1 / SearchScreen_1 ? ??? ?? ? ? */
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,

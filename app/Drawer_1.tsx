@@ -3,6 +3,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   Alert,
   Dimensions,
   FlatList,
@@ -67,28 +68,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리 (Pretendard 대신 시스템 폰트 사용)
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 const bookshelfImages = [
   BOOKSHELF_IMAGE,
@@ -366,7 +346,7 @@ export default function HomeShelf() {
                       </Text>
                     </View>
                     <View style={styles.slideSubtitleSlot}>
-                      <Text style={styles.keyringSubtitle} numberOfLines={4}>
+                      <Text style={styles.keyringSubtitle}>
                         당신이 책 보석함에 등록한 책들 중 완독한 책이 키링으로 기록됩니다.
                         {'\n'}책 장르별로 참 장식이 달라지니 모으는 재미가 있을 거예요!
                       </Text>
@@ -435,7 +415,7 @@ export default function HomeShelf() {
                     </View>
 
                     <View style={styles.slideSubtitleSlot}>
-                      <Text style={styles.vaultSubtitle} numberOfLines={3}>
+                      <Text style={styles.vaultSubtitle}>
                         읽고 있거나 읽을 예정인 책을 오른쪽 아이콘을 눌러 등록해보세요.{'\n'}
                         아래 책장에 책이 하나 하나 쌓일거예요!
                       </Text>
@@ -753,7 +733,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
   header: {
-    height: 65,
+    minHeight: 65,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -882,15 +862,13 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   slideTitleSlot: {
-    height: SLIDE_TITLE_SLOT,
+    minHeight: SLIDE_TITLE_SLOT,
     marginBottom: 12,
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   slideSubtitleSlot: {
-    height: SLIDE_SUBTITLE_SLOT,
+    minHeight: SLIDE_SUBTITLE_SLOT,
     marginBottom: 15,
-    overflow: 'hidden',
   },
   keyringTitle: {
     fontSize: 20,
@@ -1166,7 +1144,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,
@@ -1339,10 +1317,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,
-    height: 48,
+    minHeight: 48,
   },
   searchModalCancelButton: {
     flex: 1,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: COLORS.BACKGROUND,
     borderRightWidth: 1,
     borderRightColor: COLORS.BORDER,
@@ -1352,11 +1332,12 @@ const styles = StyleSheet.create({
   searchModalCancelButtonText: {
     fontSize: 15,
     fontFamily: FONTS.MEDIUM,
-    fontWeight: '500',
     color: '#555',
   },
   searchModalAddButton: {
     flex: 1,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: '#5AA83A',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1364,7 +1345,6 @@ const styles = StyleSheet.create({
   searchModalAddButtonText: {
     fontSize: 15,
     fontFamily: FONTS.SEMIBOLD,
-    fontWeight: '600',
     color: COLORS.BACKGROUND,
   },
   searchModalOverlayTouchable: {

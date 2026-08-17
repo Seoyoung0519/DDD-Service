@@ -1,13 +1,14 @@
 import React from 'react';
 import {
   Dimensions,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import { StatsCard } from './StatsCard';
 import { DEFAULT_READING_STATS, type ReadingStatsData } from './types';
@@ -68,13 +69,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
     color: '#111827',
     letterSpacing: -0.5,
     marginBottom: 6,
-    ...Platform.select({
-      android: { fontFamily: 'sans-serif-medium' },
-    }),
+    fontFamily: APP_FONTS.BOLD,
   },
   description: {
     fontSize: 15,

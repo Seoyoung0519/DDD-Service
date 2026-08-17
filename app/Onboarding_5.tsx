@@ -22,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 // 색상 상수
 const COLORS = {
@@ -39,29 +40,7 @@ const COLORS = {
   CIRCLE_BUTTON_ICON: '#FFFFFF',
 };
 
-// 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 export default function Onboarding_5() {
   const router = useRouter();
@@ -291,7 +270,8 @@ const styles = StyleSheet.create({
   },
   previousButton: {
     flex: 1,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: COLORS.BUTTON_BG,
     borderRadius: 24,
     alignItems: 'center',
@@ -305,7 +285,8 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     flex: 1,
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: COLORS.BUTTON_GREEN,
     borderRadius: 24,
     alignItems: 'center',

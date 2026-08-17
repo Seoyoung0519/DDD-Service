@@ -2,14 +2,13 @@ import { useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
 import {
   Image,
-  Platform,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
   type ViewStyle,
 } from 'react-native';
 
+import { AppText } from '@/src/components/ui/AppText';
 import { markOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
 import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
 
@@ -36,7 +35,9 @@ export function OnboardingAppBar({ variant = 'step', hideSkip = false, style }: 
     <View style={[styles.appBar, variant === 'welcome' && styles.appBarWelcome, style]}>
       <View style={styles.appBarLeft}>
         <Image source={BUS_ICON} style={styles.busIcon} resizeMode="contain" />
-        <Text style={styles.appTitle}>대독단</Text>
+        <AppText variant="title" weight="bold" style={styles.appTitle} numberOfLines={1}>
+          대독단
+        </AppText>
       </View>
       <TouchableOpacity
         style={[styles.skipButton, hideSkip && styles.skipHidden]}
@@ -45,30 +46,20 @@ export function OnboardingAppBar({ variant = 'step', hideSkip = false, style }: 
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityRole="button"
         accessibilityLabel="온보딩 건너뛰기">
-        <Text style={styles.skipText}>건너뛰기</Text>
+        <AppText variant="label" style={styles.skipText}>
+          건너뛰기
+        </AppText>
       </TouchableOpacity>
     </View>
   );
 }
 
-const FONTS = {
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-};
-
 const styles = StyleSheet.create({
   appBar: {
-    height: 56,
+    minHeight: 56,
     paddingHorizontal: 16,
     paddingTop: 8,
+    paddingBottom: 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -80,6 +71,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    marginRight: 8,
   },
   busIcon: {
     width: 35,
@@ -88,13 +82,14 @@ const styles = StyleSheet.create({
   },
   appTitle: {
     fontSize: 18,
-    fontWeight: '700',
     color: '#222222',
-    fontFamily: FONTS.BOLD,
+    includeFontPadding: false,
+    flexShrink: 1,
   },
   skipButton: {
     paddingVertical: 6,
     paddingHorizontal: 4,
+    flexShrink: 0,
   },
   skipHidden: {
     opacity: 0,
@@ -102,6 +97,5 @@ const styles = StyleSheet.create({
   skipText: {
     fontSize: 14,
     color: '#777777',
-    fontFamily: FONTS.MEDIUM,
   },
 });

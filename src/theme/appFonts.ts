@@ -9,6 +9,8 @@ export function useAppFonts() {
     'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.otf'),
     'Pretendard-Medium': require('../../assets/fonts/Pretendard-Medium.otf'),
     'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.otf'),
+    // SemiBold 파일 없음 → Medium으로 등록해 이름만 통일
+    'Pretendard-SemiBold': require('../../assets/fonts/Pretendard-Medium.otf'),
     // 구 코드/스타일 호환
     Pretendard: require('../../assets/fonts/Pretendard-Regular.otf'),
   });

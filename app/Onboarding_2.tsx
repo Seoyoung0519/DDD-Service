@@ -2,6 +2,7 @@ import { saveOnboardingUserTypeForEdit } from '@/src/services/onboarding/onboard
 import { setOnboardingUserType, fetchOnboardingState } from '@/src/services/onboarding/onboardingService';
 import { loadOnboardingProfileForEdit } from '@/src/api/userProfile';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   isOnboardingEditMode,
   mapUserTypeFromProfile,
 } from '@/src/utils/onboardingProfileEdit';
@@ -14,7 +15,6 @@ import {
   Alert,
   Dimensions,
   Image,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -43,28 +43,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 type UserType = 'worker_student' | 'other';
 
@@ -335,7 +314,8 @@ const styles = StyleSheet.create({
   nextButton: {
     alignSelf: 'center',
     width: SCREEN_WIDTH * 0.8,
-    height: 50,
+    minHeight: 50,
+    paddingVertical: 12,
     backgroundColor: COLORS.BUTTON_BG,
     borderRadius: 25,
     alignItems: 'center',

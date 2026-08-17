@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { APP_FONTS } from '@/src/theme/fonts';
 
 import type { ReadingStaminaBook } from '@/src/components/reading-stamina/types';
 
@@ -24,10 +25,7 @@ const SIDE_PADDING = (SCREEN_WIDTH - SNAP_WIDTH) / 2;
 /** 자동 넘김 간격 (ms) */
 const AUTO_ADVANCE_MS = 3500;
 
-const FONTS = {
-  REGULAR: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
-  BOLD: Platform.select({ ios: 'System', android: 'Roboto-Bold', default: 'sans-serif' }),
-};
+const FONTS = APP_FONTS;
 
 const PLACEHOLDER_COVER = require('../../../assets/images/drawer/book.png');
 
@@ -272,13 +270,13 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   selectedBookTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.BOLD,
     fontWeight: '700',
     color: '#222222',
     marginBottom: 6,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 18,
     maxWidth: SCREEN_WIDTH - 48,
   },
   selectedBookAuthorRow: {
@@ -288,7 +286,7 @@ const styles = StyleSheet.create({
     maxWidth: SCREEN_WIDTH - 48,
   },
   selectedBookAuthor: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: FONTS.REGULAR,
     color: '#777777',
     textAlign: 'center',
@@ -300,7 +298,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: FONTS.REGULAR,
     color: '#777777',
     textAlign: 'center',

@@ -2,9 +2,9 @@ import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   Dimensions,
   Image,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -27,28 +27,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 // 시간 포맷팅 함수 (초를 MM:SS 형식으로)
 const formatTime = (seconds: number): string => {
@@ -202,7 +181,8 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   nextButton: {
-    height: 48,
+    minHeight: 48,
+    paddingVertical: 12,
     backgroundColor: COLORS.BUTTON_GREEN,
     borderRadius: 8,
     alignItems: 'center',

@@ -1,6 +1,7 @@
 import { fetchFeed, type FeedItemOut } from '@/src/api/feed';
 import { fetchBookReviews, type ReviewOut } from '@/src/api/reviews';
 import {
+import { APP_FONTS } from '@/src/theme/fonts';
   FeedReportMenuButton,
   UserReportMenuButton,
 } from '@/src/components/reports/FeedReportMenuButton';
@@ -76,28 +77,7 @@ const COLORS = {
 };
 
 // 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 // 도서 상세 타입 정의
 interface BookDetail {
@@ -615,7 +595,7 @@ export default function BookDetailScreen() {
                 {book.title}
               </Text>
               {book.subTitle && (
-                <Text style={styles.bookSubTitle} numberOfLines={1}>
+                <Text style={styles.bookSubTitle} numberOfLines={2}>
                   {book.subTitle}
                 </Text>
               )}
@@ -1146,7 +1126,7 @@ const styles = StyleSheet.create({
   // 하단 네비게이션 바
   bottomNav: {
     flexDirection: 'row',
-    height: 100,
+    minHeight: 100,
     backgroundColor: COLORS.BACKGROUND,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,
