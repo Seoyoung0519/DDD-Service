@@ -14,17 +14,14 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
-  Image,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 색상 상수
 const COLORS = {
@@ -38,8 +35,8 @@ const COLORS = {
   BUTTON_TEXT: '#555555',
   BUTTON_GREEN: '#2C8C55',
   BUTTON_GREEN_TEXT: '#FFFFFF',
-  CIRCLE_BUTTON_BG: '#E0E0E0',
-  CIRCLE_BUTTON_ICON: '#666666',
+  CIRCLE_BUTTON_BG: '#2C8C55',
+  CIRCLE_BUTTON_ICON: '#FFFFFF',
 };
 
 // 폰트 패밀리
@@ -133,7 +130,11 @@ export default function Onboarding_5() {
       <View style={styles.divider} />
 
       {/* 메인 컨텐츠 영역 */}
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+        bounces={false}>
         {/* 타이틀 */}
         <Text style={styles.mainTitle}>독서 속도 테스트를 진행하세요</Text>
 
@@ -150,13 +151,15 @@ export default function Onboarding_5() {
             style={[styles.circleButton, (starting || skipping) && { opacity: 0.7 }]}
             onPress={handleStart}
             disabled={starting || skipping}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="독서 속도 테스트 시작하기">
             {starting ? (
               <ActivityIndicator color={COLORS.CIRCLE_BUTTON_ICON} />
             ) : (
               <Ionicons
                 name="arrow-forward"
-                size={32}
+                size={36}
                 color={COLORS.CIRCLE_BUTTON_ICON}
               />
             )}
@@ -164,7 +167,7 @@ export default function Onboarding_5() {
           {/* 점 인디케이터 */}
           <View style={styles.dotIndicator} />
         </View>
-      </View>
+      </ScrollView>
 
       {/* 하단 버튼 영역 */}
       <View style={styles.buttonContainer}>
@@ -223,8 +226,12 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentInner: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 40,
+    paddingBottom: 24,
     alignItems: 'center',
   },
   mainTitle: {
@@ -239,30 +246,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666666',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
     fontFamily: FONTS.REGULAR,
     paddingHorizontal: 13,
-    marginBottom: 60,
+    marginBottom: 32,
   },
   startSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+    flexGrow: 1,
+    paddingVertical: 16,
+    minHeight: 220,
   },
   startLabel: {
     fontSize: 16,
     color: '#333333',
     fontFamily: FONTS.MEDIUM,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   circleButton: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     backgroundColor: COLORS.CIRCLE_BUTTON_BG,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    flexShrink: 0,
+    overflow: 'visible',
   },
   dotIndicator: {
     width: 4,
@@ -275,6 +286,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 24,
     paddingBottom: 24,
+    paddingTop: 8,
     gap: 12,
   },
   previousButton: {

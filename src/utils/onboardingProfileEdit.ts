@@ -26,12 +26,14 @@ export function mapReadingSpeedToUi(speed: string | null | undefined): 1 | 2 | 3
   return 3;
 }
 
-export function mapWeeklyCountToFreq(count: number | null | undefined): '1' | '2' | '3' | '4+' | null {
+export function mapWeeklyCountToFreq(
+  count: number | null | undefined,
+): 'monthly' | 'weekly_low' | 'weekly_mid' | 'daily' | null {
   if (count == null || !Number.isFinite(count)) return null;
-  if (count >= 4) return '4+';
-  if (count <= 1) return '1';
-  if (count === 2) return '2';
-  return '3';
+  if (count >= 6) return 'daily';
+  if (count >= 3) return 'weekly_mid';
+  if (count === 2) return 'weekly_low';
+  return 'monthly';
 }
 
 export function mapUiSpeedToApi(speed: 1 | 2 | 3 | 4 | 5): ReadingSpeed {

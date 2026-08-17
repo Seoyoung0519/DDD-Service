@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
-const DAEDOKDAN_LOGO = require('../assets/images/onboarding/대독단로고.png');
+const ONBOARDING_COMPLETE_BUS = require('../assets/images/onboarding/onboarding-complete-bus.png');
 
 // 색상 상수
 const COLORS = {
@@ -82,9 +82,9 @@ export default function Onboarding_8() {
           아래 버튼을 눌러 대독단을 시작해보세요
         </Text>
 
-        {/* 대독단 로고 - 바퀴가 도로 위에 있는 것처럼 */}
+        {/* 대독단 버스 이미지 */}
         <View style={styles.logoContainer}>
-          <Image source={DAEDOKDAN_LOGO} style={styles.logo} resizeMode="contain" />
+          <Image source={ONBOARDING_COMPLETE_BUS} style={styles.logo} resizeMode="contain" />
         </View>
       </View>
 
@@ -167,10 +167,10 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: SCREEN_WIDTH * 0.95,
-    height: SCREEN_WIDTH * 0.95,
-    maxWidth: 400,
-    maxHeight: 400,
+    width: SCREEN_WIDTH * 0.55,
+    height: SCREEN_WIDTH * 0.55,
+    maxWidth: 240,
+    maxHeight: 240,
   },
   bottomSection: {
     backgroundColor: COLORS.BOTTOM_BG,

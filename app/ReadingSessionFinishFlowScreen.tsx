@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from '@/src/components/ui/KeyboardAwareScrollView';
+import { redactLogData } from '@/src/utils/appLog';
 
 import { uploadReadingProof } from '@/src/api/proofUpload';
 import {
@@ -105,7 +106,7 @@ function OutlineButton({
 
 function finishFlowLog(message: string, data?: Record<string, unknown>): void {
   if (data) {
-    console.log(`[finish-flow] ${message}`, data);
+    console.log(`[finish-flow] ${message}`, redactLogData(data));
   } else {
     console.log(`[finish-flow] ${message}`);
   }
@@ -338,13 +339,10 @@ export default function ReadingSessionFinishFlowScreen() {
         </View>
       );
     }
-    if (step === 'proof-complete') {
-      return (
-        <OutlineButton label="닫기" onPress={() => void finishAndGoHome()} />
-      );
-    }
     return null;
   };
+
+  const topActions = renderTopActions();
 
   return (
     <View style={styles.root}>
@@ -358,14 +356,19 @@ export default function ReadingSessionFinishFlowScreen() {
             maxHeight: '92%',
           },
         ]}>
-        <View style={styles.modalHeader}>
-          <View style={styles.modalHeaderSpacer} />
-          {renderTopActions()}
-        </View>
+        {topActions ? (
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderSpacer} />
+            {topActions}
+          </View>
+        ) : null}
 
         <KeyboardAwareScrollView
           style={{ flexGrow: 0, maxHeight: SCREEN_H * 0.72 }}
-          contentContainerStyle={styles.modalBody}
+          contentContainerStyle={[
+            styles.modalBody,
+            step === 'proof-complete' && styles.modalBodyProofComplete,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           {step === 'pages-input' ? (
@@ -594,20 +597,24 @@ export default function ReadingSessionFinishFlowScreen() {
                 photoUri={photoUri}
                 style={styles.previewFrame}
               />
-              <Pressable
-                style={styles.finishBtn}
-                onPress={() => void finishAndGoHome()}
-                disabled={finishing}
-                accessibilityRole="button">
-                {finishing ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.finishBtnText}>끝내기</Text>
-                )}
-              </Pressable>
             </>
           ) : null}
         </KeyboardAwareScrollView>
+
+        {step === 'proof-complete' ? (
+          <Pressable
+            style={styles.finishBtn}
+            onPress={() => void finishAndGoHome()}
+            disabled={finishing}
+            accessibilityRole="button"
+            accessibilityLabel="끝내기">
+            {finishing ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.finishBtnText}>끝내기</Text>
+            )}
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -655,6 +662,10 @@ const styles = StyleSheet.create({
   modalBody: {
     paddingHorizontal: 20,
     paddingBottom: 24,
+  },
+  modalBodyProofComplete: {
+    paddingTop: 20,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 18,
@@ -835,16 +846,19 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.REGULAR,
   },
   finishBtn: {
-    marginTop: 20,
+    width: '100%',
     backgroundColor: COLORS.PRIMARY,
-    borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 18,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   finishBtnText: {
     fontSize: 16,
+    fontWeight: '700',
     color: '#FFFFFF',
-    fontFamily: FONTS.MEDIUM,
+    fontFamily: FONTS.BOLD,
   },
   outlineBtn: {
     paddingHorizontal: 14,

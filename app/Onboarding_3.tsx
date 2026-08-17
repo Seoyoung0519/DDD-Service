@@ -106,11 +106,20 @@ const GENRES = [
 
 type Genre = (typeof GENRES)[number];
 type UiReadingSpeed = 1 | 2 | 3 | 4 | 5; // 5개의 원 (1: 매우 느림, 3: 보통, 5: 매우 빠름)
-type ReadingFreq = '1' | '2' | '3' | '4+';
+/** UI 선택 → API `weeklyReadCount`(1–7)로 변환 */
+type ReadingFreq = 'monthly' | 'weekly_low' | 'weekly_mid' | 'daily';
 
 function mapFreqToWeeklyCount(freq: ReadingFreq): number {
-  if (freq === '4+') return 4;
-  return parseInt(freq, 10);
+  switch (freq) {
+    case 'monthly':
+      return 1;
+    case 'weekly_low':
+      return 2;
+    case 'weekly_mid':
+      return 4;
+    case 'daily':
+      return 7;
+  }
 }
 
 export default function Onboarding_3() {
@@ -235,10 +244,10 @@ export default function Onboarding_3() {
   };
 
   const freqOptions: { value: ReadingFreq; label: string }[] = [
-    { value: '1', label: '1번' },
-    { value: '2', label: '2번' },
-    { value: '3', label: '3번' },
-    { value: '4+', label: '4번 이상' },
+    { value: 'monthly', label: '한 달에 1–2번' },
+    { value: 'weekly_low', label: '1주일에 1–2번' },
+    { value: 'weekly_mid', label: '1주일에 3–4번' },
+    { value: 'daily', label: '거의 매일' },
   ];
 
   return (
@@ -377,7 +386,7 @@ export default function Onboarding_3() {
             독서 횟수<Text style={styles.asterisk}>*</Text>
           </Text>
           <Text style={styles.sectionDescription}>
-            일주일 기준으로 평소 책을 읽는 횟수를 선택해주세요
+            평소 책을 읽는 횟수를 선택해주세요.
           </Text>
           <TouchableOpacity
             style={styles.dropdown}

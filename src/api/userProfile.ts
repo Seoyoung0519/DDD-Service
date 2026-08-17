@@ -13,6 +13,7 @@ import {
   saveCachedUserProfileSnapshot,
 } from '@/src/services/onboarding/onboardingProfileCache';
 import { isInvalidTokenDetail, parseApiErrorDetail } from '@/src/utils/extendedApiAuth';
+import { maskUserId } from '@/src/utils/appLog';
 
 function normalizeUserProfile(raw: unknown): UserProfileResponse {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
@@ -219,7 +220,7 @@ export async function getUserProfile(): Promise<UserProfileResponse> {
     if (fallback) {
       if (__DEV__) {
         console.warn('[userProfile] GET /user/profile 500 — 캐시·세션 기반 프로필 사용', {
-          userId: fallback.userId,
+          userId: maskUserId(fallback.userId),
           nickname: fallback.nickname,
         });
       }

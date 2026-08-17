@@ -25,7 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // 이미지 경로
-const WORKER_STUDENT_IMAGE = require('../assets/images/onboarding/직장인.png');
+const WORKER_STUDENT_IMAGE = require('../assets/images/onboarding/worker-student.png');
 
 // 색상 상수
 const COLORS = {
@@ -267,6 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
+    overflow: 'hidden',
   },
   cardSelected: {
     borderWidth: 2,
@@ -310,12 +311,13 @@ const styles = StyleSheet.create({
   },
   cardImageSection: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
+    justifyContent: 'flex-end',
+    height: 96,
+    marginTop: 4,
   },
   cardImage: {
-    width: SCREEN_WIDTH * 0.8 * 0.8,
-    height: 110,
+    width: 140,
+    height: 96,
   },
   otherCardContent: {
     flex: 1,
