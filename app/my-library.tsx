@@ -376,8 +376,8 @@ export default function MyLibraryScreen() {
               onPress={() => setReviewSelectModalVisible(true)}>
               <View style={styles.completedHeroLeft}>
                 <Text style={styles.completedHeroKicker}>기록의 기쁨</Text>
-                <Text style={styles.completedHeroTitle}>
-                  독서 리뷰{'\n'}작성하기
+                <Text style={styles.completedHeroTitle} numberOfLines={2}>
+                  독서리뷰{'\n'}작성하기
                 </Text>
                 <View style={styles.completedHeroChevronBtn}>
                   <Ionicons name="chevron-forward" size={17} color="#9A9A9A" />
@@ -871,7 +871,8 @@ const styles = StyleSheet.create({
   completedHeroLeft: {
     flex: 1,
     alignSelf: 'flex-start',
-    paddingRight: 6,
+    minWidth: 92,
+    paddingRight: 4,
     zIndex: 1,
   },
   completedHeroKicker: {
@@ -906,12 +907,12 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   completedHeroImageWrap: {
-    width: 78,
+    width: 68,
     minHeight: 48,
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    marginLeft: -10,
-    marginRight: 10,
+    marginLeft: -4,
+    marginRight: 8,
     marginBottom: -4,
   },
   completedHeroImage: {
