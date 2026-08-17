@@ -3,8 +3,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   ActivityIndicator,
   Dimensions,
   Image,

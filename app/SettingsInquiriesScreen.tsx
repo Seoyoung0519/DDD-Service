@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   ActivityIndicator,
   Platform,
   Pressable,

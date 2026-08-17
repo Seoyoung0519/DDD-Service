@@ -1,8 +1,8 @@
 import { submitReadingProfile, fetchOnboardingState } from '@/src/services/onboarding/onboardingService';
 import { saveReadingProfileForEdit } from '@/src/services/onboarding/onboardingProfileEditSave';
 import { loadOnboardingProfileForEdit, updateUserProfile } from '@/src/api/userProfile';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   isOnboardingEditMode,
   mapReadingSpeedToUi,
   mapUiSpeedToApi,

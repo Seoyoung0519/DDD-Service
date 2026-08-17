@@ -1,8 +1,8 @@
 import { saveOnboardingUserTypeForEdit } from '@/src/services/onboarding/onboardingProfileEditSave';
 import { setOnboardingUserType, fetchOnboardingState } from '@/src/services/onboarding/onboardingService';
 import { loadOnboardingProfileForEdit } from '@/src/api/userProfile';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   isOnboardingEditMode,
   mapUserTypeFromProfile,
 } from '@/src/utils/onboardingProfileEdit';

@@ -3,8 +3,8 @@ import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   ActivityIndicator,
   Alert,
   Platform,

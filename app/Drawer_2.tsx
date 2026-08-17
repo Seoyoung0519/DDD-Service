@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   Dimensions,
   Image,
   Platform,

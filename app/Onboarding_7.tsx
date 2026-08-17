@@ -1,8 +1,8 @@
 import { OnboardingAppBar } from '@/src/components/onboarding/OnboardingAppBar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   Dimensions,
   Image,
   StyleSheet,

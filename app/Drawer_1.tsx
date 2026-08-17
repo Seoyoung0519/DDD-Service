@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   Alert,
   Dimensions,
   FlatList,

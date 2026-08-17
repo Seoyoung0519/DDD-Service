@@ -1,5 +1,5 @@
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   submitCommuteProfile,
   fetchOnboardingState,
   type CommuteDay,

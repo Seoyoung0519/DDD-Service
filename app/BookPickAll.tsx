@@ -3,8 +3,8 @@ import { Image as ExpoImage } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import {
 import { APP_FONTS } from '@/src/theme/fonts';
+import {
   ActivityIndicator,
   FlatList,
   Image,
