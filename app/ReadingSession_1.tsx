@@ -25,7 +25,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
 const BELL_ICON_HEADER = require('../assets/images/drawer/bell.png');
 const BOOKSHELF_ICON = require('../assets/images/reading_session/bookshelf-load.png');
-const READING_BOOK_ICON = require('../assets/images/reading_session/독서중 불러오기.png');
+const READING_BOOK_ICON = require('../assets/images/reading_session/icon-reading-load.png');
 
 // 하단 네비게이션 아이콘
 const TODAY_ICON = require('../assets/images/drawer/bus.png');

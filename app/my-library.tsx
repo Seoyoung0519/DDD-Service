@@ -54,7 +54,7 @@ import {
   type ReadingStatsData,
 } from '@/src/components/reading-stats/types';
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
-const READING_RECORD_IMG = require('../assets/images/mylibrary/독서기록.png');
+const READING_RECORD_IMG = require('../assets/images/mylibrary/reading-record.png');
 
 const SCREEN_W = Dimensions.get('window').width;
 

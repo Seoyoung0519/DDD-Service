@@ -35,14 +35,14 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 /** 키링·책장 스와이프 페이지 세로 슬롯 (넘길 때 아래 진도율 영역이 흔들리지 않도록 동일 높이) */
 const SLIDE_TITLE_SLOT = 32;
-const SLIDE_SUBTITLE_SLOT = 60;
+const SLIDE_SUBTITLE_SLOT = 72;
 const SLIDE_MEDIA_HEIGHT = 280;
 const SLIDE_PAGE_HEIGHT =
   18 + SLIDE_TITLE_SLOT + 12 + SLIDE_SUBTITLE_SLOT + 15 + SLIDE_MEDIA_HEIGHT + 12 + 12 + 36 + 30;
 
 // 이미지 경로 (app 바로 아래에 있으므로 한 단계만 올라감)
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
-const KEYRING_IMAGE = require('../assets/images/drawer/빈키링.png');
+const KEYRING_IMAGE = require('../assets/images/drawer/empty-keyring.png');
 const BOOK1_COVER = require('../assets/images/drawer/book1.png');
 const BOOK2_COVER = require('../assets/images/drawer/book2.png');
 const BOOKSHELF_IMAGE = require('../assets/images/drawer/bookshelf.png');
@@ -366,9 +366,9 @@ export default function HomeShelf() {
                       </Text>
                     </View>
                     <View style={styles.slideSubtitleSlot}>
-                      <Text style={styles.keyringSubtitle} numberOfLines={3}>
-                        당신이 책 보석함에 등록한 책들 중 완독한 책이 키링으로 기록됩니다. 책 장르별로 참
-                        장식이 달라지니 모으는 재미가 있을 거예요!
+                      <Text style={styles.keyringSubtitle} numberOfLines={4}>
+                        당신이 책 보석함에 등록한 책들 중 완독한 책이 키링으로 기록됩니다.
+                        {'\n'}책 장르별로 참 장식이 달라지니 모으는 재미가 있을 거예요!
                       </Text>
                     </View>
                     <View style={styles.keyringImageContainer}>
@@ -903,7 +903,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: FONTS.REGULAR,
     color: COLORS.SUBTITLE,
-    lineHeight: 20,
+    lineHeight: 18,
+    includeFontPadding: false,
   },
   keyringImageContainer: {
     height: SLIDE_MEDIA_HEIGHT,
@@ -919,13 +920,15 @@ const styles = StyleSheet.create({
   },
   keyringEmptyText: {
     position: 'absolute',
-    bottom: 4,
+    bottom: 10,
     left: 16,
     right: 16,
-    fontSize: 13,
+    fontSize: 11,
+    lineHeight: 14,
     fontFamily: FONTS.REGULAR,
     color: COLORS.SUBTITLE,
     textAlign: 'center',
+    includeFontPadding: false,
   },
   slideFooter: {
     position: 'relative',

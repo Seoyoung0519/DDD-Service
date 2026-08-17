@@ -2,6 +2,8 @@ import { AppMenuButton } from '@/src/components/header/AppMenuButton';
 import { NotificationBellButton } from '@/src/components/header/NotificationBellButton';
 import { ProfileHeaderButton } from '@/src/components/header/ProfileHeaderButton';
 import { AppBottomNavBar } from '@/src/components/navigation/AppBottomNavBar';
+import { AppText } from '@/src/components/ui/AppText';
+import { APP_FONTS } from '@/src/theme/fonts';
 import { Image as ExpoImage } from 'expo-image';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -10,23 +12,19 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-/** Samsung/Android 시스템 글자 크기 확대 시 카드가 깨지지 않도록 상한 */
-const FONT_SCALE_CAP = 1.15;
-
 // 이미지 경로
 const BUS_LOGO = require('../assets/images/drawer/bus.png'); // 상단 헤더용
-const BUS_ICON = require('../assets/images/reading_session/버스.png');
-const SUBWAY_ICON = require('../assets/images/reading_session/지하철.png');
-const LOCATION_ICON = require('../assets/images/reading_session/위치.png');
-const BELL_ICON = require('../assets/images/reading_session/종.png');
-const BOOK_ICON = require('../assets/images/reading_session/책.png');
-const ARROW_ICON = require('../assets/images/reading_session/화살표.png');
+const BUS_ICON = require('../assets/images/reading_session/icon-bus.png');
+const SUBWAY_ICON = require('../assets/images/reading_session/icon-subway.png');
+const LOCATION_ICON = require('../assets/images/reading_session/icon-location.png');
+const BELL_ICON = require('../assets/images/reading_session/icon-bell.png');
+const BOOK_ICON = require('../assets/images/reading_session/icon-book.png');
+const ARROW_ICON = require('../assets/images/reading_session/icon-arrow.png');
 
 // 하단 네비게이션 아이콘
 const TODAY_ICON = require('../assets/images/drawer/bus.png');
@@ -52,29 +50,7 @@ const COLORS = {
   BORDER: '#EAEAEA',
 };
 
-// 폰트 패밀리
-const FONTS = {
-  REGULAR: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-    default: 'sans-serif',
-  }),
-  MEDIUM: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  SEMIBOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Medium',
-    default: 'sans-serif',
-  }),
-  BOLD: Platform.select({
-    ios: 'System',
-    android: 'Roboto-Bold',
-    default: 'sans-serif',
-  }),
-};
+const FONTS = APP_FONTS;
 
 export default function ReadingIntroScreen() {
   const router = useRouter();
@@ -85,57 +61,57 @@ export default function ReadingIntroScreen() {
   };
 
   const Card1Title = () => (
-    <Text style={styles.cardTitle} maxFontSizeMultiplier={FONT_SCALE_CAP}>
+    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
       읽을 책 PICK
-    </Text>
+    </AppText>
   );
 
   const Card1Description = () => (
-    <Text style={styles.cardDescription} maxFontSizeMultiplier={FONT_SCALE_CAP}>
+    <AppText scaleRole="body" style={styles.cardDescription}>
       대중교통을 이용할 동안 읽을 책을 골라주세요
-    </Text>
+    </AppText>
   );
 
   const Card2Title = () => (
-    <Text style={styles.cardTitle} maxFontSizeMultiplier={FONT_SCALE_CAP}>
+    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
       출·도착지 등록
-    </Text>
+    </AppText>
   );
 
   const Card2Description = () => (
-    <Text style={styles.cardDescription} maxFontSizeMultiplier={FONT_SCALE_CAP}>
-      대독단이 <Text style={styles.highlightText}>이동 소요시간</Text>과 여러분의{' '}
-      <Text style={styles.highlightText}>책 읽는 속도</Text> 등을 고려해{' '}
-      <Text style={styles.highlightText}>책 쪽수</Text>를 추천해요
-    </Text>
+    <AppText scaleRole="body" style={styles.cardDescription}>
+      대독단이 <AppText scaleRole="body" style={styles.highlightText}>이동 소요시간</AppText>과 여러분의{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>책 읽는 속도</AppText> 등을 고려해{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>책 쪽수</AppText>를 추천해요
+    </AppText>
   );
 
   const Card3Title = () => (
-    <Text style={styles.cardTitle} maxFontSizeMultiplier={FONT_SCALE_CAP}>
+    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
       기록하고 인증하기
-    </Text>
+    </AppText>
   );
 
   const Card3Description = () => (
-    <Text style={styles.cardDescription} maxFontSizeMultiplier={FONT_SCALE_CAP}>
-      이동 시간동안 읽은 <Text style={styles.highlightText}>책 쪽수를</Text>{' '}
-      <Text style={styles.highlightText}>기록하고</Text>{' '}
-      <Text style={styles.highlightText}>커스텀 인증샷</Text>을 공유해요
-    </Text>
+    <AppText scaleRole="body" style={styles.cardDescription}>
+      이동 시간동안 읽은 <AppText scaleRole="body" style={styles.highlightText}>책 쪽수를</AppText>{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>기록하고</AppText>{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>커스텀 인증샷</AppText>을 공유해요
+    </AppText>
   );
 
   const Card4Title = () => (
-    <Text style={styles.cardTitle} maxFontSizeMultiplier={FONT_SCALE_CAP}>
+    <AppText weight="bold" scaleRole="title" style={styles.cardTitle}>
       독서하기
-    </Text>
+    </AppText>
   );
 
   const Card4Description = () => (
-    <Text style={styles.cardDescription} maxFontSizeMultiplier={FONT_SCALE_CAP}>
-      추천 쪽수대로 <Text style={styles.highlightText}>독서를</Text> 시작하고{' '}
-      <Text style={styles.highlightText}>환승할 지점</Text>과 도착지 한 정거장 전{' '}
-      <Text style={styles.highlightText}>독서 정리 알림</Text>을 제공해요
-    </Text>
+    <AppText scaleRole="body" style={styles.cardDescription}>
+      추천 쪽수대로 <AppText scaleRole="body" style={styles.highlightText}>독서를</AppText> 시작하고{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>환승할 지점</AppText>과 도착지 한 정거장 전{' '}
+      <AppText scaleRole="body" style={styles.highlightText}>독서 정리 알림</AppText>을 제공해요
+    </AppText>
   );
 
   return (
@@ -144,7 +120,9 @@ export default function ReadingIntroScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <ExpoImage source={BUS_LOGO} style={styles.logoIcon} contentFit="contain" />
-          <Text style={styles.logoText}>대독단</Text>
+          <AppText weight="bold" scaleRole="nav" style={styles.logoText}>
+            대독단
+          </AppText>
         </View>
         <View style={styles.headerRight}>
           <ProfileHeaderButton style={styles.headerIconButton} iconColor={COLORS.TEXT} />
@@ -160,9 +138,15 @@ export default function ReadingIntroScreen() {
         {/* 상단 타이틀 영역 */}
         <View style={styles.titleSection}>
           <View style={styles.titleRow}>
-            <Text style={styles.titleText} maxFontSizeMultiplier={FONT_SCALE_CAP}>대독단과 </Text>
-            <Text style={styles.titleTextGreen} maxFontSizeMultiplier={FONT_SCALE_CAP}>독서</Text>
-            <Text style={styles.titleText} maxFontSizeMultiplier={FONT_SCALE_CAP}>하기</Text>
+            <AppText weight="bold" scaleRole="title" style={styles.titleText}>
+              대독단과{' '}
+            </AppText>
+            <AppText weight="bold" scaleRole="title" style={styles.titleTextGreen}>
+              독서
+            </AppText>
+            <AppText weight="bold" scaleRole="title" style={styles.titleText}>
+              하기
+            </AppText>
           </View>
         </View>
 
@@ -262,9 +246,9 @@ export default function ReadingIntroScreen() {
 
         {/* 하단 안내 문구 + 인디케이터 */}
         <View style={styles.bottomInfoSection}>
-          <Text style={styles.bottomQuestion} maxFontSizeMultiplier={FONT_SCALE_CAP}>
+          <AppText weight="bold" scaleRole="title" style={styles.bottomQuestion}>
             이제 독서를 시작해볼까요?
-          </Text>
+          </AppText>
           <View style={styles.dotsContainer}>
             <View style={[styles.dot, styles.dotInactive]} />
             <View style={[styles.dot, styles.dotActive]} />
@@ -281,9 +265,9 @@ export default function ReadingIntroScreen() {
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel="시작하기">
-          <Text style={styles.startButtonText} maxFontSizeMultiplier={FONT_SCALE_CAP}>
+          <AppText weight="bold" scaleRole="button" style={styles.startButtonText}>
             시작하기
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </View>
 
@@ -303,9 +287,9 @@ export default function ReadingIntroScreen() {
             ]}
             resizeMode="contain"
           />
-          <Text style={[styles.navLabel, activeNav === '투데이' && styles.navLabelActive]}>
+          <AppText scaleRole="nav" style={[styles.navLabel, activeNav === '투데이' && styles.navLabelActive]}>
             투데이
-          </Text>
+          </AppText>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
@@ -320,12 +304,11 @@ export default function ReadingIntroScreen() {
             ]}
             resizeMode="contain"
           />
-          <Text style={[
-            styles.navLabel,
-            activeNav === '책읽기' && styles.navLabelActiveReading
-          ]}>
+          <AppText
+            scaleRole="nav"
+            style={[styles.navLabel, activeNav === '책읽기' && styles.navLabelActiveReading]}>
             책읽기
-          </Text>
+          </AppText>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
@@ -341,7 +324,9 @@ export default function ReadingIntroScreen() {
             ]}
             resizeMode="contain"
           />
-          <Text style={[styles.navLabel, activeNav === '검색' && styles.navLabelActive]}>검색</Text>
+          <AppText scaleRole="nav" style={[styles.navLabel, activeNav === '검색' && styles.navLabelActive]}>
+            검색
+          </AppText>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
@@ -357,9 +342,9 @@ export default function ReadingIntroScreen() {
             ]}
             resizeMode="contain"
           />
-          <Text style={[styles.navLabel, activeNav === '내서재' && styles.navLabelActive]}>
+          <AppText scaleRole="nav" style={[styles.navLabel, activeNav === '내서재' && styles.navLabelActive]}>
             내서재
-          </Text>
+          </AppText>
         </TouchableOpacity>
       </AppBottomNavBar>
     </SafeAreaView>
@@ -484,8 +469,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 10,
-    overflow: 'hidden',
+    overflow: 'visible',
     justifyContent: 'space-between',
+    minHeight: 168,
   },
   cardTextBlock: {
     alignItems: 'center',
@@ -520,15 +506,16 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
     width: '100%',
-    minHeight: 48,
+    minHeight: 52,
     flexShrink: 0,
+    overflow: 'visible',
   },
   cardImage: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
   },
   cardImageOverlap: {
-    marginLeft: -12,
+    marginLeft: -8,
   },
   arrowSlot: {
     width: 18,
@@ -584,7 +571,8 @@ const styles = StyleSheet.create({
   },
   startButton: {
     width: '80%',
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 14,
     backgroundColor: COLORS.BUTTON_GREEN,
     borderRadius: 26,
     alignItems: 'center',

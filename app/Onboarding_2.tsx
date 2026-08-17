@@ -263,11 +263,11 @@ const styles = StyleSheet.create({
   },
   card: {
     width: SCREEN_WIDTH * 0.75,
-    height: 205,
+    minHeight: 240,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   cardSelected: {
     borderWidth: 2,
@@ -312,12 +312,13 @@ const styles = StyleSheet.create({
   cardImageSection: {
     alignItems: 'center',
     justifyContent: 'flex-end',
-    height: 96,
-    marginTop: 4,
+    height: 120,
+    marginTop: 8,
+    overflow: 'visible',
   },
   cardImage: {
-    width: 140,
-    height: 96,
+    width: 160,
+    height: 120,
   },
   otherCardContent: {
     flex: 1,

@@ -23,7 +23,14 @@ const ROOT_STACK_BG = '#E8F3ED';
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [fontsLoaded, fontError] = useAppFonts();
+  // 폰트 로드 실패 시에도 앱은 뜨게 하되, Pretendard 등록 성공을 우선 기다립니다.
   const fontsReady = fontsLoaded || !!fontError;
+
+  useEffect(() => {
+    if (fontError) {
+      console.warn('[fonts] Pretendard load failed; falling back to system fonts', fontError);
+    }
+  }, [fontError]);
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(ROOT_STACK_BG);

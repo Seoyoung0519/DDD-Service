@@ -10,7 +10,8 @@ const skipCommuteRouteSearch =
 
 const plugins = [
   './plugins/withKakaoMavenRepository.js',
-  './plugins/withDisableSystemFontScale.js',
+  // 시스템 fontScale을 1로 잠그면 maxFontSizeMultiplier 정책이 무의미해지므로 사용하지 않습니다.
+  // './plugins/withDisableSystemFontScale.js',
   './plugins/withTransparentNavBar.js',
   ...(appJson.expo.plugins ?? []),
 ];

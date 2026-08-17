@@ -54,7 +54,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // 이미지 경로
 const BUS_LOGO = require('../assets/images/drawer/bus.png');
 const BELL_ICON_HEADER = require('../assets/images/drawer/bell.png');
-const LOCATION_ICON = require('../assets/images/reading_session/위치_2.png');
+const LOCATION_ICON = require('../assets/images/reading_session/icon-location-2.png');
 
 // 하단 네비게이션 아이콘
 const TODAY_ICON = require('../assets/images/drawer/bus.png');

@@ -52,38 +52,38 @@ const READING_ICON = require('../assets/images/drawer/book.png');
 const SEARCH_ICON = require('../assets/images/drawer/search.png');
 const LIBRARY_ICON = require('../assets/images/drawer/drawer.png');
 
-// 랭킹 책 이미지
+// 랭킹 책 이미지 (ASCII 파일명 — APK에서 한글 경로 resolve 깨짐 방지)
 const RANKING_BOOKS = {
-  혼모과: require('../assets/images/daedokPick/혼모과.png'),
+  혼모과: require('../assets/images/daedokPick/book-honmoga.png'),
   팩트풀니스: require('../assets/images/drawer/book1.png'),
-  가공범: require('../assets/images/daedokPick/가공범.png'),
-  편안함의습격: require('../assets/images/daedokPick/편안함의습격.png'),
-  호의에대하여: require('../assets/images/daedokPick/호의에대하여.png'),
-  다정한사람이이긴다: require('../assets/images/daedokPick/다정한사람이이긴다.png'),
-  트렌드코리아: require('../assets/images/daedokPick/트렌드코리아.png'),
-  절창: require('../assets/images/daedokPick/절창.png'),
-  키메라의땅: require('../assets/images/daedokPick/키메라의땅.png'),
+  가공범: require('../assets/images/daedokPick/book-gagongbeom.png'),
+  편안함의습격: require('../assets/images/daedokPick/book-comfort-raid.png'),
+  호의에대하여: require('../assets/images/daedokPick/book-about-kindness.png'),
+  다정한사람이이긴다: require('../assets/images/daedokPick/book-kind-wins.png'),
+  트렌드코리아: require('../assets/images/daedokPick/book-trend-korea.png'),
+  절창: require('../assets/images/daedokPick/book-jeolchang.png'),
+  키메라의땅: require('../assets/images/daedokPick/book-chimera-land.png'),
 };
 
-// 카테고리 이미지
+// 카테고리 이미지 (ASCII 파일명 — APK에서 한글 경로 resolve 깨짐 방지)
 const CATEGORY_IMAGES = {
-  소설: require('../assets/images/daedokPick/소설.png'),
-  시에세이: require('../assets/images/daedokPick/에세이.png'),
-  어린이: require('../assets/images/daedokPick/어린이.png'),
-  만화: require('../assets/images/daedokPick/만화.png'),
-  경제경영: require('../assets/images/daedokPick/경제경영.png'),
-  외국어: require('../assets/images/daedokPick/외국어.png'),
-  인문: require('../assets/images/daedokPick/인문.png'),
-  철학: require('../assets/images/daedokPick/철학.png'),
-  과학: require('../assets/images/daedokPick/과학.png'),
-  사회: require('../assets/images/daedokPick/사회.png'),
+  소설: require('../assets/images/daedokPick/category-novel.png'),
+  시에세이: require('../assets/images/daedokPick/category-essay.png'),
+  어린이: require('../assets/images/daedokPick/category-children.png'),
+  만화: require('../assets/images/daedokPick/category-comics.png'),
+  경제경영: require('../assets/images/daedokPick/category-business.png'),
+  외국어: require('../assets/images/daedokPick/category-language.png'),
+  인문: require('../assets/images/daedokPick/category-humanities.png'),
+  철학: require('../assets/images/daedokPick/category-philosophy.png'),
+  과학: require('../assets/images/daedokPick/category-science.png'),
+  사회: require('../assets/images/daedokPick/category-society.png'),
   IT: require('../assets/images/daedokPick/IT.png'),
-  역사: require('../assets/images/daedokPick/역사.png'),
-  종교: require('../assets/images/daedokPick/종교.png'),
-  여행: require('../assets/images/daedokPick/여행.png'),
-  매거진: require('../assets/images/daedokPick/매거진.png'),
-  라이프스타일: require('../assets/images/daedokPick/라이프스타일.png'),
-  자기계발: require('../assets/images/daedokPick/자기계발.png'),
+  역사: require('../assets/images/daedokPick/category-history.png'),
+  종교: require('../assets/images/daedokPick/category-religion.png'),
+  여행: require('../assets/images/daedokPick/category-travel.png'),
+  매거진: require('../assets/images/daedokPick/category-magazine.png'),
+  라이프스타일: require('../assets/images/daedokPick/category-lifestyle.png'),
+  자기계발: require('../assets/images/daedokPick/category-selfhelp.png'),
 };
 
 // 색상 상수
