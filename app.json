@@ -22,7 +22,7 @@
     "android": {
       "package": "com.daedokdan.app",
       "label": "대독단",
-      "versionCode": 6,
+      "versionCode": 5,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",

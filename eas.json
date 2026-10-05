@@ -21,7 +21,7 @@
       "distribution": "store"
     },
     "production": {
-      "autoIncrement": true,
+      "autoIncrement": false,
       "distribution": "store"
     }
   }
