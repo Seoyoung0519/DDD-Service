@@ -27,7 +27,31 @@ const LOCATION_WATCH_OPTIONS = {
   distanceInterval: 15,
 };
 
-export async function requestLocationPermissions(): Promise<LocationPermissionResult> {
+type RequestLocationPermissionsOptions = {
+  /** Google Play 명시적 공개 화면에서 사용자가 동의한 뒤에만 true */
+  fromProminentDisclosure?: boolean;
+};
+
+export async function requestLocationPermissions(
+  options: RequestLocationPermissionsOptions = {},
+): Promise<LocationPermissionResult> {
+  const { fromProminentDisclosure = false } = options;
+
+  if (Platform.OS === 'android' && !fromProminentDisclosure) {
+    const { hasCompletedDevicePermissionsDisclosure } = await import(
+      '@/src/services/permissions/devicePermissionsDisclosure'
+    );
+    if (!(await hasCompletedDevicePermissionsDisclosure())) {
+      return {
+        ok: false,
+        foregroundGranted: false,
+        backgroundGranted: false,
+        message:
+          '위치 권한을 요청하기 전에 앱 시작 시 안내된 위치 정보 공개 화면에서 내용을 확인해 주세요.',
+      };
+    }
+  }
+
   const Location = await getLocationModule();
   const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
   const foregroundGranted = foregroundStatus === 'granted';

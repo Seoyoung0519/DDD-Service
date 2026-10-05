@@ -9,6 +9,8 @@
       "distribution": "internal"
     },
     "preview": {
+      "extends": "production",
+      "autoIncrement": false,
       "distribution": "internal",
       "environment": "preview",
       "android": {
@@ -19,7 +21,8 @@
       "distribution": "store"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "distribution": "store"
     }
   }
 }

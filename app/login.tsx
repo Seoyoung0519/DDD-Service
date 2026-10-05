@@ -34,6 +34,7 @@ import {
   fetchOnboardingState,
 } from '@/src/services/onboarding/onboardingService';
 import { isOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
+import { applyDevicePermissionsDisclosureGate } from '@/src/services/permissions/devicePermissionsDisclosure';
 import { resolveAgreementsGateRoute } from '@/src/services/settings/agreementGate';
 import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
 import { APP_FONTS } from '@/src/theme/fonts';
@@ -78,16 +79,18 @@ export default function LoginScreen() {
       }
 
       if (await isOnboardingSkipped()) {
-        void initializePushNotifications();
-        router.replace('/DaedokPick');
+        const route = await applyDevicePermissionsDisclosureGate('/DaedokPick');
+        if (route === '/DaedokPick') void initializePushNotifications();
+        router.replace(route);
         return;
       }
 
       const onboardingState = await fetchOnboardingState();
 
       if (onboardingState && onboardingState.isOnboarded) {
-        void initializePushNotifications();
-        router.replace('/Drawer_1');
+        const route = await applyDevicePermissionsDisclosureGate('/Drawer_1');
+        if (route === '/Drawer_1') void initializePushNotifications();
+        router.replace(route);
         return;
       }
 
@@ -97,14 +100,14 @@ export default function LoginScreen() {
         router.replace(agreementsRoute);
         return;
       }
-      router.replace('/onboarding');
+      router.replace(await applyDevicePermissionsDisclosureGate('/onboarding'));
     } catch {
       const agreementsRoute = await resolveAgreementsGateRoute('onboarding');
       if (agreementsRoute) {
         router.replace(agreementsRoute);
         return;
       }
-      router.replace('/onboarding');
+      router.replace(await applyDevicePermissionsDisclosureGate('/onboarding'));
     }
   }, [router]);
 

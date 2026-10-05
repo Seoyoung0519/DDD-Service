@@ -7,6 +7,7 @@ import { AppLaunchSplash } from '@/src/components/splash/AppLaunchSplash';
 import { getAccessToken, clearAccessToken } from '@/src/services/auth/authService';
 import { fetchBootstrapSessionAndOnboarding } from '@/src/services/onboarding/onboardingService';
 import { isOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
+import { applyDevicePermissionsDisclosureGate } from '@/src/services/permissions/devicePermissionsDisclosure';
 import { resolveAgreementsGateRoute } from '@/src/services/settings/agreementGate';
 import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
 
@@ -24,12 +25,10 @@ async function resolveInitialRoute(): Promise<Href> {
     }
 
     if (await isOnboardingSkipped()) {
-      void initializePushNotifications();
       return '/DaedokPick';
     }
 
     if (onboarding?.isOnboarded) {
-      void initializePushNotifications();
       return '/Drawer_1';
     }
 
@@ -63,7 +62,12 @@ export default function SplashRoute() {
         ]);
 
         if (cancelled) return;
-        router.replace(route);
+        const gatedRoute = await applyDevicePermissionsDisclosureGate(route);
+        if (cancelled) return;
+        if (gatedRoute === route) {
+          void initializePushNotifications();
+        }
+        router.replace(gatedRoute);
       } catch (e) {
         console.warn('[SPLASH] bootstrap failed:', e);
         if (!cancelled) router.replace('/intro');

@@ -10,7 +10,7 @@ import {
 
 import { AppText } from '@/src/components/ui/AppText';
 import { markOnboardingSkipped } from '@/src/services/onboarding/onboardingSkip';
-import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
+import { applyDevicePermissionsDisclosureGate } from '@/src/services/permissions/devicePermissionsDisclosure';
 
 const BUS_ICON = require('../../../assets/images/onboarding/daedokdan-bus-v2.png');
 
@@ -27,8 +27,7 @@ export function OnboardingAppBar({ variant = 'step', hideSkip = false, style }: 
 
   const handleSkip = useCallback(async () => {
     await markOnboardingSkipped();
-    void initializePushNotifications();
-    router.replace('/DaedokPick');
+    router.replace(await applyDevicePermissionsDisclosureGate('/DaedokPick'));
   }, [router]);
 
   return (

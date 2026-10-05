@@ -34,6 +34,7 @@ import {
   parseOnboardingAgreementNextRoute,
   type OnboardingAgreementNextRoute,
 } from '@/src/services/onboarding/onboardingSkip';
+import { resolveDevicePermissionsDisclosureRoute } from '@/src/services/permissions/devicePermissionsDisclosure';
 import { initializePushNotifications } from '@/src/services/push/pushNotificationService';
 
 const REQUIRED_TYPES: PolicyType[] = APP_POLICY_TYPES;
@@ -148,7 +149,12 @@ export default function OnboardingAgreementsScreen() {
     });
   };
 
-  const goAfterAgree = (route: OnboardingAgreementNextRoute) => {
+  const goAfterAgree = async (route: OnboardingAgreementNextRoute) => {
+    const disclosureRoute = await resolveDevicePermissionsDisclosureRoute(route);
+    if (disclosureRoute) {
+      router.replace(disclosureRoute);
+      return;
+    }
     if (route === 'DaedokPick') {
       void initializePushNotifications();
       router.replace('/DaedokPick');
@@ -192,7 +198,7 @@ export default function OnboardingAgreementsScreen() {
         locationTermsVersion: latest.location.version,
       });
       await clearOnboardingAgreementPending();
-      goAfterAgree(nextRoute);
+      await goAfterAgree(nextRoute);
     } catch (reason) {
       Alert.alert(
         '약관 동의 실패',
